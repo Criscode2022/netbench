@@ -28,7 +28,7 @@ La app de GitHub de Railway perdió acceso al repositorio y los pushes dejaron d
 
 ### Railway desapareció
 
-En noviembre el servicio ya no existía y la demo se quedó sin API. Se movió a la plataforma de hosting del autor. Como ese camino no deja pasar WebSockets, la web pasó a leer el estado por HTTP. Ver [Decisiones](./09-decisions.md#la-api-en-el-mac-del-autor-sin-websocket).
+En noviembre el servicio ya no existía y la demo se quedó sin API. Se movió a una plataforma de hosting propia. Como ese camino no deja pasar WebSockets, la web pasó a leer el estado por HTTP. Ver [Decisiones](./09-decisions.md#la-api-en-un-mac-propio-sin-websocket).
 
 ### Un inicio de sesión que regalaba cuentas
 
@@ -50,4 +50,4 @@ Al revisar la API antes de volver a publicarla apareció `POST /auth/magic`: com
 
 - La web no tiene tests automáticos; se prueba con el build de producción y a mano en el navegador, a 390 × 844 y a 1280 × 800.
 - No hay CI propia: los tests corren en cada despliegue de la API, pero un commit que solo toca la web no los pasa. Ver [Testing · CI](./16-testing-ci.md).
-- La API depende de que el Mac del autor esté encendido.
+- La API depende de que ese Mac esté encendido.

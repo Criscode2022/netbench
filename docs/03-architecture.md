@@ -18,7 +18,7 @@ Cajón de Eve  --NDJSON-->  Eve en Vercel  --HTTP-->  /api/eve/tools/*
 | --- | --- | --- |
 | Web (Angular) | Vercel, estática | Son ficheros; un CDN basta |
 | Eve | Vercel (`eve deploy`) | eve usa el AI Gateway de Vercel con OIDC, sin claves en el código |
-| API + motor | Un proceso de Node en el Mac del autor, publicado como `netbench-api.cristiancode.dev` | El motor guarda cada laboratorio en memoria y lo hace avanzar en el tiempo; no cabe en una función de 10 segundos |
+| API + motor | Un proceso de Node en un Mac propio, publicado como `netbench-api.cristiancode.dev` | El motor guarda cada laboratorio en memoria y lo hace avanzar en el tiempo; no cabe en una función de 10 segundos |
 | Postgres | Neon | Cuentas y laboratorios guardados |
 
 ## El motor es la fuente de verdad
@@ -44,7 +44,7 @@ La API, la web y Eve usan esos mismos métodos. Por eso el motivo de una caída 
 
 ### Por qué en producción no hay socket
 
-La API se publica a través de la plataforma de hosting del autor: Cloudflare recibe la petición y la manda por Tailscale Funnel a un proceso del Mac. Ese camino es HTTP y no deja pasar WebSockets. La web lo sabe por configuración (`WS` es `null` fuera de localhost) y lee el estado en vez de esperar a que se lo empujen. El cliente envía el comando por HTTP igualmente cuando el socket no está, así que el resultado es el mismo con una petición más cada 1,5 segundos. La API deja que el navegador guarde el preflight de CORS 10 minutos, para que cada lectura sea una sola petición. Ver [Decisiones](./09-decisions.md).
+La API se publica a través de una plataforma de hosting propia: Cloudflare recibe la petición y la manda por Tailscale Funnel a un proceso del Mac. Ese camino es HTTP y no deja pasar WebSockets. La web lo sabe por configuración (`WS` es `null` fuera de localhost) y lee el estado en vez de esperar a que se lo empujen. El cliente envía el comando por HTTP igualmente cuando el socket no está, así que el resultado es el mismo con una petición más cada 1,5 segundos. La API deja que el navegador guarde el preflight de CORS 10 minutos, para que cada lectura sea una sola petición. Ver [Decisiones](./09-decisions.md).
 
 ## Eve dentro de la arquitectura
 
@@ -57,4 +57,4 @@ Eve no habla con el motor directamente. Sus herramientas son llamadas HTTP a `/a
 | La API | La web carga y enseña el último laboratorio guardado en el navegador; los comandos fallan con «Cannot reach the lab API» y el pie lo dice |
 | Postgres | Invitados y laboratorios en memoria; iniciar sesión y «My labs» fallan |
 | Eve o el AI Gateway | Todo menos el cajón de Eve, que enseña el error y reintenta |
-| El Mac del autor | La web y Eve; la API no, porque vive en él |
+| Ese Mac | La web y Eve; la API no, porque vive en él |

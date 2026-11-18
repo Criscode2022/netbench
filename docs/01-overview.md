@@ -44,7 +44,7 @@ El motor es la única fuente de verdad. La web nunca decide si un paquete llega:
 | Instructor | eve 0.47 en Vercel, AI Gateway con una cadena de modelos de varios proveedores |
 | Datos | Postgres en Neon: usuarios y laboratorios guardados |
 | Pruebas | Vitest 3 y Supertest; evals de eve |
-| Despliegue | Web y Eve en Vercel; la API en el Mac del autor a través de su plataforma de hosting y Cloudflare |
+| Despliegue | Web y Eve en Vercel; la API en un Mac propio, a través de una plataforma de hosting propia y Cloudflare |
 
 ## En cifras
 

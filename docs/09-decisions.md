@@ -40,9 +40,9 @@ Cada concepto tiene un laboratorio que funciona (modelo) y uno o más rotos (eje
 
 Pedir registro antes de tocar nada echa a la mitad de la gente. El invitado tiene todo menos guardar en el servidor, y su laboratorio vive en el navegador.
 
-## La API en el Mac del autor, sin WebSocket
+## La API en un Mac propio, sin WebSocket
 
-Cuando Railway dejó de servir la API, había tres caminos: pagar Railway, rehacer el motor para que corriera en el navegador, o publicar la API desde la plataforma de hosting del Mac del autor, que ya publica otros servidores en `*.cristiancode.dev`. Se eligió la última: no cuesta nada, despliega en cada push y pasa los tests antes de cada despliegue.
+Cuando Railway dejó de servir la API, había tres caminos: pagar Railway, rehacer el motor para que corriera en el navegador, o publicar la API desde una plataforma de hosting propia, en un Mac, que ya publica otros servidores en `*.cristiancode.dev`. Se eligió la última: no cuesta nada, despliega en cada push y pasa los tests antes de cada despliegue.
 
 Ese camino pasa por Cloudflare y Tailscale Funnel y no deja pasar WebSockets. En vez de añadirlos a la plataforma, la web lee el estado por HTTP cada 1,5 segundos cuando no hay socket. Es más robusto en general (un proxy de empresa también corta WebSockets), el cliente ya mandaba los comandos por HTTP cuando el socket no estaba, y la lectura del estado no cuenta para el límite de llamadas. El precio es una petición por segundo y medio mientras la pestaña está visible, y que la API depende de que el Mac esté encendido.
 

@@ -28,7 +28,7 @@ npm run dev               # API :3001, web :4200, Eve :4010
 | --- | --- | --- |
 | Web | Vercel, proyecto `netbench-www` | Cada push a `main` |
 | Eve | Vercel, proyecto `netbench-eve` | Cada push a `main`; a mano con `npm run deploy:eve` |
-| API | La plataforma de hosting del Mac del autor, proyecto `netbench-api`, publicado en `https://netbench-api.cristiancode.dev` | Cada push a `main` |
+| API | Una plataforma de hosting propia, en un Mac, proyecto `netbench-api`, publicado en `https://netbench-api.cristiancode.dev` | Cada push a `main` |
 | Base de datos | Neon, proyecto `netbench` | `sql/schema.sql`, aplicado por la API al arrancar |
 
 ### La API en la plataforma de hosting
@@ -69,4 +69,4 @@ Después, en https://netbench-www-criscode2022s-projects.vercel.app/: el pie dic
 ## Historia del despliegue
 
 - **Septiembre de 2026**: la API vivía en Railway, en un plan de prueba, y Railway no se enteraba de los pushes (la app de GitHub había perdido acceso), así que cada despliegue era una llamada a mano a su API.
-- **Noviembre de 2026**: el servicio de Railway ya no existía («Application not found») y la demo se quedó sin API. El 18 de noviembre la API pasó a la plataforma de hosting del Mac del autor, con despliegue en cada push, y la web pasó a leer el estado por HTTP.
+- **Noviembre de 2026**: el servicio de Railway ya no existía («Application not found») y la demo se quedó sin API. El 18 de noviembre la API pasó a una plataforma de hosting propia, en un Mac, con despliegue en cada push, y la web pasó a leer el estado por HTTP.
