@@ -428,6 +428,8 @@ curl -s https://netbench-eve-criscode2022s-projects.vercel.app/eve/v1/health
 
 Then in the browser: footer **Connected**, `ping -c 3 10.0.0.20` from PC1 in lab 1, Check passes.
 
+Keep the platform's **Portfolio** switch for `netbench-api` off. The portfolio matches a project to a destacado by repository, so switching it on would point NetBench's Web link at the API. The destacado (`netbench` on cristiancode.dev) is maintained through the portfolio's MCP server, and its docs come from `docs/`.
+
 **History.** Until November 2026 the API was on a Railway trial (project `netbench-api`), deployed by hand with `serviceInstanceDeployV2` because the Railway GitHub App had lost access. By 2026-11-18 Railway answered "Application not found" and the demo had no API; it moved to the hosting platform that day.
 
 ---
