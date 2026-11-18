@@ -20,7 +20,7 @@ La web está en **Angular 22.1 y TypeScript 6.0**, sin Zone.js, con **Tailwind C
 | `viewChild` | `nb-terminal` | La salida y el campo de texto, sin decoradores |
 | `@if`, `@for`, `@switch` | Todas las plantillas | Control de flujo nativo; `workspace.html` tiene 249 bloques |
 | `ng-template` con `NgTemplateOutlet` | `workspace.html` | El mismo panel de equipo en el inspector de escritorio y en la hoja del móvil |
-| `Pipe` | `i18n.ts` | La traducción en las plantillas |
+| `Pipe` | `i18n.ts`, `eve-markdown.ts` | La traducción en las plantillas; la negrita y el código de las respuestas de Eve, escapadas antes de pasar por `[innerHTML]` |
 | `provideRouter` | `app.config.ts` | Una ruta, `''` → `Workspace` |
 
 ## Decisiones de la web
@@ -30,6 +30,7 @@ La web está en **Angular 22.1 y TypeScript 6.0**, sin Zone.js, con **Tailwind C
 - **El SVG del lienzo es grande** (4000 × 3000 o más) y se mueve con la misma transformación que las tarjetas, para que un cable no se recorte en un teléfono.
 - **Gestos nativos.** El pellizco de Safari llega por `addEventListener` y llama a `detectChanges()`, porque sin Zone.js Angular no se entera solo.
 - **La terminal no usa `ngModel`.** Escribe en un signal con `[value]` y `(input)`, porque `ngModel` aplica los cambios programáticos más tarde y rompía el autocompletado con Tab y el historial.
+- **La cabecera cabe en 390 px.** En un teléfono solo quedan el selector de laboratorio, Check y el menú (o el interruptor de Basic); Mis laboratorios, Guardar y Rehacer van en el menú ⋯ o solo en escritorio. Un botón de más ensancha la página entera a lo que mida la cabecera, y el móvil la encoge.
 - **Sin regex ni funciones flecha en plantillas**: Angular no las acepta, así que van a métodos del componente.
 - **Tailwind 4 con tokens.** `styles.css` define los colores (`ink-*`, `brand-*`, `ok`, `warn`, `danger`, `eve`) en `@theme` y las clases de componente (`.btn`, `.chip`, `.field`, `.led`, `.card`).
 

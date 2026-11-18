@@ -42,6 +42,7 @@ import { Icon, KIND_ICON, type IconName } from './icons';
 import { Terminal, quickCommandsFor, type TermLine } from './terminal';
 import { Packets } from './packets';
 import { Toasts, type Toast, type ToastKind } from './toasts';
+import { EveMarkdownPipe } from './eve-markdown';
 import { LabPicker } from './lab-picker';
 import { MinePicker } from './mine-picker';
 import { CheatSheet } from './cheat-sheet';
@@ -163,7 +164,7 @@ const SUBNET_COLORS = ['text-ok-300', 'text-sky-300', 'text-amber-300', 'text-fu
 
 @Component({
   selector: 'app-workspace',
-  imports: [FormsModule, NgClass, NgTemplateOutlet, Icon, Flag, Terminal, Packets, Toasts, LabPicker, MinePicker, CheatSheet],
+  imports: [FormsModule, NgClass, NgTemplateOutlet, Icon, Flag, Terminal, Packets, Toasts, LabPicker, MinePicker, CheatSheet, EveMarkdownPipe],
   templateUrl: './workspace.html',
 })
 export class Workspace implements OnInit, AfterViewInit, OnDestroy {

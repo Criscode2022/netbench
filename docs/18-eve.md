@@ -71,5 +71,5 @@ Siete conversaciones con un modelo de verdad comprueban que Eve nombra la causa 
 
 ## Límites
 
-- El cajón enseña la respuesta como texto plano: el Markdown que escribe el modelo (`**negrita**`, bloques de código) se ve tal cual.
+- El cajón entiende negrita, código y bloques de código (`eve-markdown.ts`, que escapa todo antes); una tabla o un título saldrían como texto, así que las instrucciones de Eve le piden no usarlos.
 - Eve en producción depende del plan gratuito del AI Gateway, con su límite de peticiones por modelo.

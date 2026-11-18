@@ -489,6 +489,8 @@ Latest verification (2026-11-18): engine 64 tests green; API 37 tests green (6 r
 13. **Hints are state, not simulation** — `hintsFor()` only reads engine facts (adminUp, status, peers, running-config, checks). Never add a hint that predicts forwarding.
 14. **`HTTP 404 — Cannot POST /api/eve/tools/confirm` from Eve** (usually with `lab session not found` for the UI's `labKey`) means the API is an older build than the Vercel web + Eve host. Check `GET https://netbench-api.cristiancode.dev/api/health`: `version` must be a recent `main` commit and `eveTools: true`. The hosting platform deploys every push; if it did not, look at the deploy in its admin (a failed test leaves the old build serving).
 15. **No socket in production** — `WS` is `null` off localhost and `Api.poll()` reads the state. A `wss://` URL would fail on the HTTP-only path and the footer would sit on Reconnecting.
+17. **Phone header width** — at 390 px the header holds the lab picker, Help (Basic), Undo (not in Basic), Check and Basic on / ⋯. My labs, Save and Redo are hidden below `md` (My labs and Save a copy are in ⋯). One more button made the header 516 px wide and mobile Chrome then zoomed the whole page out; measure `document.documentElement.scrollWidth` at 390 after any header change.
+18. **Eve's replies are rendered** by `eve-markdown.ts` (escape first, then fenced code, `code`, **bold**). Tables and headings are not rendered; `instructions.md` and the `how-eve-must-talk` skill tell Eve not to write them.
 16. **Eve says `MODEL_CALL_FAILED` / `gateway-free-tier-model-restricted`** — a model in the chain left the AI Gateway free tier. Swap it for one with `availableToFreeTier` (or set `EVE_MODEL` / `EVE_FALLBACK_MODELS` on the Vercel project).
 
 ---
@@ -500,7 +502,6 @@ These are ideas, not commitments:
 - Recable/no-shut existing Gi0/3 on old sessions without asking the user to delete the cable.
 - Persist Basic/Advanced/Focus per user account, not only localStorage.
 - Dedicated `POST /sessions/:id/state` (or `/labs` on builtin id) that does not let a signed-in autosave overwrite a row keyed by a builtin lab id.
-- Render Markdown in the Eve drawer (it shows `**bold**` and code fences as raw text).
 - Add a GitHub Actions workflow for tests, type checks and the web build; today only the API deploy runs the tests.
 - Bump root `package.json` `engines.node` to `>=24` (eve's real requirement).
 - Desktop Basic is unused; only phones. Desktop uses Simple vs Advanced.
