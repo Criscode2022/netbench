@@ -370,6 +370,8 @@ export class Api {
    * `json()`, which calls connectWs() again for the new one, so this loop stops when the session id changes.
    */
   private poll(id: string): void {
+    // connectWs() runs right after open/attach/recover read the state, so the link is live until a read fails.
+    this.live.set(true);
     let seen = new Set((this.state()?.packets ?? []).map((p) => p.id));
     const tick = async () => {
       this.pollTimer = null;
