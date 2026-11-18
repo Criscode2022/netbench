@@ -15,19 +15,27 @@ import { modelState, processHint } from './model-state.ts';
  * EVE_MODEL_RECOVER_MINUTES.
  */
 
-const DEFAULT_MODEL = 'minimax/minimax-m3';
+/**
+ * Every default is open to the AI Gateway free tier, which this project runs on. The Gateway refuses the rest with
+ * `gateway-free-tier-model-restricted` (403), and that is what took Eve down in November 2026: the whole previous
+ * chain (minimax-m3, gpt-5.6-luna, gemini-3.7-flash, glm-5.3-flash, deepseek-v4-flash, gpt-5.4-mini) had left the free
+ * tier. Before changing a default, check `availableToFreeTier` on https://vercel.com/ai-gateway/models, or buy
+ * Gateway credits.
+ */
+const DEFAULT_MODEL = 'minimax/minimax-m3.1-flash';
 
 /** Different providers on purpose, so a single vendor outage never empties the chain. All support tool calling. */
 const DEFAULT_FALLBACKS = [
-  'openai/gpt-5.6-luna',
-  'google/gemini-3.7-flash',
-  'zai/glm-5.3-flash',
-  'deepseek/deepseek-v4-flash',
-  'openai/gpt-5.4-mini',
+  'openai/gpt-5-mini',
+  'google/gemini-2.5-flash',
+  'zai/glm-4.7-flash',
+  'alibaba/qwen3.5-flash',
+  'mistral/mistral-small',
 ];
 
 /** Context windows from the AI Gateway catalog (tokens). Unknown ids fall back to EVE_CONTEXT_TOKENS. */
 const CONTEXT_WINDOW: Record<string, number> = {
+  'minimax/minimax-m3.1-flash': 1_000_000,
   'minimax/minimax-m3': 512_000,
   'minimax/minimax-m3-free': 1_048_576,
   'minimax/minimax-m2.7': 204_800,
@@ -40,6 +48,10 @@ const CONTEXT_WINDOW: Record<string, number> = {
   'google/gemini-3.5-flash': 1_000_000,
   'google/gemini-3.5-flash-lite': 1_000_000,
   'google/gemini-2.5-flash': 1_000_000,
+  'openai/gpt-5-mini': 400_000,
+  'zai/glm-4.7-flash': 200_000,
+  'alibaba/qwen3.5-flash': 1_000_000,
+  'mistral/mistral-small': 262_144,
   'zai/glm-5.3-flash': 1_000_000,
   'zai/glm-5.1': 200_000,
   'deepseek/deepseek-v4-flash': 1_000_000,
