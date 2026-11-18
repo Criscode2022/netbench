@@ -10,7 +10,8 @@ const EVE_ORIGIN = process.env.EVE_ORIGIN || 'http://127.0.0.1:4010';
 
 export async function createApp(): Promise<INestApplication> {
   const app = await NestFactory.create(AppModule, { logger: ['error', 'warn', 'log'] });
-  app.enableCors({ origin: true, credentials: true, exposedHeaders: ['Retry-After'] });
+  // maxAge: the browser keeps the preflight for 10 minutes, so polling the state is one request, not two.
+  app.enableCors({ origin: true, credentials: true, exposedHeaders: ['Retry-After'], maxAge: 600 });
   app.setGlobalPrefix('api');
   app.useGlobalFilters(new RateLimitFilter());
   attachEveProxy(app);
