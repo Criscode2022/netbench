@@ -265,8 +265,8 @@ export const EN = {
   'agent.placeholderAnswer': 'Answer Agent…',
   'agent.send': 'Send',
 
-  'footer.apiLive': 'API + live socket connected',
-  'footer.apiSocket': 'API reachable, socket reconnecting',
+  'footer.apiLive': 'API connected, live state on',
+  'footer.apiSocket': 'API reachable, live state reconnecting',
   'footer.apiDown': 'API unreachable',
   'footer.guest': 'Guest · saved in this browser',
   'footer.differsFallback': 'Simulated: Wi-Fi RF is a simplified BSS, SSH is path+port 22, OSPF is single area 0.',

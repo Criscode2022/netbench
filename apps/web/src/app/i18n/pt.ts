@@ -267,8 +267,8 @@ export const PT: Record<MessageKey, string> = {
   'agent.placeholderAnswer': 'Responder ao Agent…',
   'agent.send': 'Enviar',
 
-  'footer.apiLive': 'API + socket em direto ligados',
-  'footer.apiSocket': 'API acessível, socket a reconectar',
+  'footer.apiLive': 'API ligada, estado em direto',
+  'footer.apiSocket': 'API acessível, estado em direto a reconectar',
   'footer.apiDown': 'API inacessível',
   'footer.guest': 'Convidado · guardado neste navegador',
   'footer.differsFallback': 'Simulado: o RF Wi-Fi é um BSS simplificado, o SSH é caminho+porta 22, o OSPF é uma só area 0.',

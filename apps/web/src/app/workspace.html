@@ -121,8 +121,8 @@
 
       @if (focusMode()) {
         <span class="hidden items-center gap-1.5 text-[11px] text-ink-400 lg:flex">
-          <span class="led" [ngClass]="api.online() ? (api.wsConnected() ? 'led-up' : 'led-warn') : 'led-down'"></span>
-          {{ api.online() ? (api.wsConnected() ? t('header.connected') : t('header.reconnecting')) : t('header.offline') }}
+          <span class="led" [ngClass]="api.online() ? (api.live() ? 'led-up' : 'led-warn') : 'led-down'"></span>
+          {{ api.online() ? (api.live() ? t('header.connected') : t('header.reconnecting')) : t('header.offline') }}
         </span>
         <button type="button" class="btn btn-secondary" (click)="toggleFocus()" [title]="t('header.exitFocusTitle')">
           <nb-icon name="collapse" [size]="14" /> {{ t('header.exitFocus') }}
@@ -1159,8 +1159,8 @@
   <!-- ===================================================================== footer -->
   @if (!focusMode()) {
   <footer class="hidden shrink-0 items-center gap-2 border-t border-ink-800 bg-ink-900/60 px-3 py-1 text-[10.5px] text-ink-500 md:flex">
-    <span class="led" [ngClass]="api.online() ? (api.wsConnected() ? 'led-up' : 'led-warn') : 'led-down'" [title]="api.online() ? (api.wsConnected() ? t('footer.apiLive') : t('footer.apiSocket')) : t('footer.apiDown')"></span>
-    <span>{{ api.online() ? (api.wsConnected() ? t('header.connected') : t('header.reconnecting')) : t('header.offline') }}</span>
+    <span class="led" [ngClass]="api.online() ? (api.live() ? 'led-up' : 'led-warn') : 'led-down'" [title]="api.online() ? (api.live() ? t('footer.apiLive') : t('footer.apiSocket')) : t('footer.apiDown')"></span>
+    <span>{{ api.online() ? (api.live() ? t('header.connected') : t('header.reconnecting')) : t('header.offline') }}</span>
     <span class="text-ink-700">·</span>
     <button type="button" class="min-w-0 truncate text-left hover:text-ink-300" (click)="aboutOpen.set(true)">{{ api.state()?.differsNote || t('footer.differsFallback') }}</button>
     <span class="ml-auto shrink-0">{{ api.guest() ? t('footer.guest') : api.email() }}</span>

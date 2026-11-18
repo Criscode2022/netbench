@@ -279,8 +279,8 @@ export const ES: Record<MessageKey, string> = {
   'agent.placeholderAnswer': 'Responde al Agente…',
   'agent.send': 'Enviar',
 
-  'footer.apiLive': 'API + socket en vivo conectados',
-  'footer.apiSocket': 'API alcanzable, socket reconectando',
+  'footer.apiLive': 'API conectada, estado en vivo',
+  'footer.apiSocket': 'API alcanzable, estado en vivo reconectando',
   'footer.apiDown': 'API inalcanzable',
   'footer.guest': 'Invitado · guardado en este navegador',
   'footer.differsFallback':

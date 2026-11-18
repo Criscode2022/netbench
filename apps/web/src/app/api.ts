@@ -2,10 +2,16 @@ import { Injectable, computed, signal } from '@angular/core';
 
 const LOCAL =
   typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
-const API = LOCAL ? '/api' : 'https://api-production-caeb.up.railway.app/api';
-const WS = LOCAL
+const API = LOCAL ? '/api' : 'https://netbench-api.cristiancode.dev/api';
+/**
+ * The production API sits behind an HTTP-only proxy (the hosting platform on a Mac, through Cloudflare), so it has
+ * no WebSocket: the client polls the session state instead (`POLL_MS`). Localhost keeps the socket.
+ */
+const WS: string | null = LOCAL
   ? `${typeof location !== 'undefined' && location.protocol === 'https:' ? 'wss' : 'ws'}://${typeof location !== 'undefined' ? location.host : '127.0.0.1:4200'}/ws`
-  : 'wss://api-production-caeb.up.railway.app/ws';
+  : null;
+/** How often the state is read without a socket; the socket pushes it every second. */
+const POLL_MS = 1500;
 
 export type CableMedia = 'ethernet' | 'straight' | 'crossover' | 'fiber';
 export const SWITCH_PROFILES = ['unmanaged', 'managed-l2', 'multilayer'] as const;
@@ -257,7 +263,8 @@ export class Api {
   warning = signal<string | null>(null);
   /** False after a network-level failure; true again after any successful request. */
   online = signal(true);
-  wsConnected = signal(false);
+  /** True while state updates arrive: over the socket, or by polling where there is none. */
+  live = signal(false);
   onPackets: ((events: PacketEvent[]) => void) | null = null;
   /** Called after a lost server session was transparently recreated from the last snapshot. */
   onRecovered: (() => void) | null = null;
@@ -266,6 +273,7 @@ export class Api {
   private ws: WebSocket | null = null;
   private wsReady: Promise<void> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private cliWaiters: Array<(msg: WsMsg) => void> = [];
   private lastLab: LabJson | null = null;
@@ -299,10 +307,14 @@ export class Api {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+    if (this.pollTimer) {
+      clearTimeout(this.pollTimer);
+      this.pollTimer = null;
+    }
     const socket = this.ws;
     this.ws = null;
     this.wsReady = null;
-    this.wsConnected.set(false);
+    this.live.set(false);
     if (socket) {
       socket.onclose = null;
       socket.close();
@@ -311,13 +323,17 @@ export class Api {
 
   connectWs(): void {
     const id = this.sessionId();
-    if (!id || typeof WebSocket === 'undefined') return;
+    if (!id) return;
     this.disconnectWs();
+    if (!WS || typeof WebSocket === 'undefined') {
+      this.poll(id);
+      return;
+    }
     const socket = new WebSocket(`${WS}?sessionId=${id}`);
     this.ws = socket;
     this.wsReady = new Promise((resolve) => {
       socket.onopen = () => {
-        this.wsConnected.set(true);
+        this.live.set(true);
         resolve();
       };
     });
@@ -338,7 +354,7 @@ export class Api {
     socket.onclose = (ev) => {
       if (this.ws !== socket) return;
       this.ws = null;
-      this.wsConnected.set(false);
+      this.live.set(false);
       // 4404: the API no longer knows this session (restart/redeploy) — rebuild it instead of reconnecting forever.
       if (ev.code === 4404) {
         void this.recover();
@@ -346,6 +362,35 @@ export class Api {
       }
       this.reconnectTimer = setTimeout(() => this.connectWs(), 1200);
     };
+  }
+
+  /**
+   * The socket's job without a socket: read the state every POLL_MS and hand the canvas the packets it has not
+   * seen (the state carries the engine's last 80). A hidden tab skips the read. A lost session is recovered by
+   * `json()`, which calls connectWs() again for the new one, so this loop stops when the session id changes.
+   */
+  private poll(id: string): void {
+    let seen = new Set((this.state()?.packets ?? []).map((p) => p.id));
+    const tick = async () => {
+      this.pollTimer = null;
+      if (this.sessionId() !== id) return;
+      if (typeof document === 'undefined' || !document.hidden) {
+        try {
+          const state = await this.json<LabState>(`/sessions/${id}/state`);
+          if (this.sessionId() !== id) return;
+          this.state.set(state);
+          this.live.set(true);
+          const packets = state.packets ?? [];
+          const fresh = packets.filter((p) => !seen.has(p.id));
+          seen = new Set(packets.map((p) => p.id));
+          if (fresh.length) this.onPackets?.(fresh);
+        } catch {
+          if (this.sessionId() === id) this.live.set(false);
+        }
+      }
+      if (this.sessionId() === id && !this.pollTimer) this.pollTimer = setTimeout(() => void tick(), POLL_MS);
+    };
+    this.pollTimer = setTimeout(() => void tick(), POLL_MS);
   }
 
   async json<T>(path: string, init?: RequestInit, opts: { recovered?: boolean } = {}): Promise<T> {

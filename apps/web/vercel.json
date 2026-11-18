@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://api-production-caeb.up.railway.app/api/:path*"
+      "destination": "https://netbench-api.cristiancode.dev/api/:path*"
     },
     {
       "source": "/((?!api).*)",

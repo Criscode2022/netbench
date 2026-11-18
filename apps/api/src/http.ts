@@ -116,9 +116,10 @@ function curriculumLab(engine: Engine): LabJson | undefined {
   return labById(engine.id);
 }
 
-/** Build identity so clients (the Eve host, the UI) can tell "old deploy" from "down" — Railway/Vercel set the commit env vars. */
+/** Build identity so clients (the Eve host, the UI) can tell "old deploy" from "down" — the hosts set the commit env vars. */
 const BUILD_VERSION =
   process.env.NETBENCH_BUILD ||
+  process.env.HOSTING_COMMIT_SHA?.slice(0, 12) ||
   process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 12) ||
   process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ||
   process.env.SOURCE_VERSION?.slice(0, 12) ||

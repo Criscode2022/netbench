@@ -10,6 +10,6 @@ RUN npm install --workspace=@netbench/eve-agent --include-workspace-root
 WORKDIR /app/apps/eve-agent
 RUN npx eve build
 ENV PORT=8080 NODE_ENV=production
-ENV NETBENCH_API_URL=https://api-production-caeb.up.railway.app
+ENV NETBENCH_API_URL=https://netbench-api.cristiancode.dev
 EXPOSE 8080
 CMD ["npx", "eve", "start", "--host", "0.0.0.0", "--port", "8080"]

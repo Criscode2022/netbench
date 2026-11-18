@@ -13,6 +13,6 @@ RUN npx eve build
 WORKDIR /app
 RUN chmod +x apps/api/start.sh
 ENV PORT=3001 NODE_ENV=production EVE_ORIGIN=http://127.0.0.1:4010
-ENV NETBENCH_API_URL=https://api-production-caeb.up.railway.app
+ENV NETBENCH_API_URL=https://netbench-api.cristiancode.dev
 EXPOSE 3001
 CMD ["sh", "apps/api/start.sh"]
