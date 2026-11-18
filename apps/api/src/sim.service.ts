@@ -95,7 +95,8 @@ export class SimService {
     let best: Session | undefined;
     for (const s of this.sessions.values()) {
       if (s.labKey === ref || s.engine.id === ref) {
-        if (!best || s.createdAt > best.createdAt) best = s;
+        // `>=`: two sessions opened in the same millisecond tie, and the Map iterates in insertion order.
+        if (!best || s.createdAt >= best.createdAt) best = s;
       }
     }
     return best;

@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import type { LabJson } from '@netbench/engine';
 import { getPool } from './db.ts';
 
@@ -18,16 +18,9 @@ export interface SavedLab {
   updatedAt: string;
 }
 
-export interface Magic {
-  token: string;
-  email: string;
-  exp: number;
-}
-
 const users = new Map<string, User>();
 const usersByEmail = new Map<string, User>();
 const labs = new Map<string, SavedLab>();
-const magics = new Map<string, Magic>();
 
 function cacheUser(user: User): User {
   users.set(user.id, user);
@@ -66,7 +59,6 @@ export function resetMemory(): void {
   users.clear();
   usersByEmail.clear();
   labs.clear();
-  magics.clear();
 }
 
 export async function findUser(id: string): Promise<User | undefined> {
@@ -128,19 +120,6 @@ export function guestUser(): User {
   const user: User = { id: randomUUID(), email: `guest-${randomUUID().slice(0, 8)}@guest.local`, passwordHash: null, guest: true };
   users.set(user.id, user);
   return user;
-}
-
-export function issueMagic(email: string): string {
-  const token = randomBytes(24).toString('hex');
-  magics.set(token, { token, email: email.toLowerCase(), exp: Date.now() + 15 * 60_000 });
-  return token;
-}
-
-export async function consumeMagic(token: string): Promise<User> {
-  const m = magics.get(token);
-  magics.delete(token);
-  if (!m || m.exp < Date.now()) throw new Error('invalid or expired magic link');
-  return (await findUserByEmail(m.email)) ?? register(m.email, randomBytes(12).toString('hex'));
 }
 
 export async function saveLab(userId: string | null, json: LabJson): Promise<SavedLab> {

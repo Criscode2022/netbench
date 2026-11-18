@@ -28,12 +28,10 @@ import {
 } from '@netbench/engine';
 import jwt from 'jsonwebtoken';
 import {
-  consumeMagic,
   deleteLab,
   findUser,
   getLab,
   guestUser,
-  issueMagic,
   listLabs,
   login,
   register,
@@ -180,23 +178,6 @@ export class AuthController {
     };
   }
 
-  @Post('magic')
-  magic(@Body() body: { email?: string }) {
-    if (!body.email) throw new HttpException('email required', 400);
-    const token = issueMagic(body.email);
-    return { ok: true, message: 'Magic link issued (email sending is not configured in this lab; use the token).', token };
-  }
-
-  @Post('magic/consume')
-  async consume(@Body() body: { token?: string }) {
-    if (!body.token) throw new HttpException('token required', 400);
-    try {
-      const u = await consumeMagic(body.token);
-      return { token: this.auth.sign(u), user: { id: u.id, email: u.email, guest: false } };
-    } catch (e) {
-      boom(e);
-    }
-  }
 
   @Get('me')
   async me(@Headers('authorization') auth?: string) {
