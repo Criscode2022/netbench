@@ -6,14 +6,14 @@
   "scripts": {
     "dev": "node ./dev.mjs",
     "dev:plain": "eve dev --host 127.0.0.1 --port 4010 --no-ui",
-    "link": "node ./link.mjs",
     "build": "eve build",
-    "start": "eve start --host 127.0.0.1 --port 4010",
-    "deploy": "node ./deploy.mjs"
+    "start": "eve start --host ${HOST:-127.0.0.1} --port ${PORT:-4010}"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^3.0.84",
     "eve": "latest",
     "just-bash": "^3.4.2",
+    "undici": "^7.30.2",
     "zod": "^4.1.5"
   }
 }

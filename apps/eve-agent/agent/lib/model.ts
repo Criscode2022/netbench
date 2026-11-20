@@ -1,62 +1,58 @@
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import type { LanguageModel } from 'ai';
 import { defineDynamic } from 'eve';
+import { Agent, fetch as undiciFetch } from 'undici';
 import { modelState, processHint } from './model-state.ts';
 
 /**
- * Model selection for Eve and her subagents.
+ * Model selection for Eve and her subagents: local models only, on the Mac that runs Eve.
  *
- * Two layers of fallback:
- *  1. AI Gateway routing — every call carries `providerOptions.gateway.models`, so a provider error is retried by the
- *     gateway on the next model in the chain within the same request.
- *  2. Eve-level rotation — when a step still fails (gateway down, quota, model removed, malformed tool calls…) the
- *     hook in agent/hooks/model-fallback.ts advances the durable per-session index and the dynamic resolver below
- *     picks the next model for the retried step. Primary is retried again after EVE_MODEL_RECOVER_MS.
+ * The chain is Bionic first (LM Studio's app, OpenAI-compatible on :1235), then Ollama (:11434/v1). Nothing goes to a
+ * cloud provider. When a step fails (engine not running, model unloaded, malformed tool call…) the hook in
+ * lib/model-fallback-hook.ts advances the durable per-session index and the resolver below picks the next model for
+ * the retried step. The primary is tried again after EVE_MODEL_RECOVER_MS.
+ *
+ * Entries are `<engine>/<model id>`; the engine decides the base URL:
+ *   bionic → EVE_BIONIC_URL (default http://127.0.0.1:1235/v1)
+ *   ollama → EVE_OLLAMA_URL (default http://127.0.0.1:11434/v1)
  *
  * Overrides: EVE_MODEL (primary), EVE_FALLBACK_MODELS (comma list), EVE_CONTEXT_TOKENS (cap),
- * EVE_MODEL_RECOVER_MINUTES.
+ * EVE_MODEL_RECOVER_MINUTES, EVE_MODEL_TIMEOUT_MS.
  */
+
+/** Bionic keeps this model loaded all the time (Mac mini Monitor's keep-loaded list), with a 65,536-token context. */
+const DEFAULT_MODEL = 'bionic/qwen3.8-9b-heretic-uncensored-mtplx';
 
 /**
- * Every default is open to the AI Gateway free tier, which this project runs on. The Gateway refuses the rest with
- * `gateway-free-tier-model-restricted` (403), and that is what took Eve down in November 2026: the whole previous
- * chain (minimax-m3, gpt-5.6-luna, gemini-3.7-flash, glm-5.3-flash, deepseek-v4-flash, gpt-5.4-mini) had left the free
- * tier. Before changing a default, check `availableToFreeTier` on https://vercel.com/ai-gateway/models, or buy
- * Gateway credits.
+ * `netbench-eve` is `qwen3.5:9b-mlx` with `num_ctx 32768` (apps/eve-agent/ollama/Modelfile). Ollama's OpenAI endpoint
+ * ignores a per-request context size and serves 8,192 tokens by default, less than Eve's first prompt (about 9,300).
  */
-const DEFAULT_MODEL = 'minimax/minimax-m3.1-flash';
+const DEFAULT_FALLBACKS = ['ollama/netbench-eve'];
 
-/** Different providers on purpose, so a single vendor outage never empties the chain. All support tool calling. */
-const DEFAULT_FALLBACKS = [
-  'openai/gpt-5-mini',
-  'google/gemini-2.5-flash',
-  'zai/glm-4.7-flash',
-  'alibaba/qwen3.5-flash',
-  'mistral/mistral-small',
-];
-
-/** Context windows from the AI Gateway catalog (tokens). Unknown ids fall back to EVE_CONTEXT_TOKENS. */
+/** Context windows (tokens) as each engine serves them. Unknown ids fall back to EVE_CONTEXT_TOKENS. */
 const CONTEXT_WINDOW: Record<string, number> = {
-  'minimax/minimax-m3.1-flash': 1_000_000,
-  'minimax/minimax-m3': 512_000,
-  'minimax/minimax-m3-free': 1_048_576,
-  'minimax/minimax-m2.7': 204_800,
-  'openai/gpt-5.6-luna': 1_050_000,
-  'openai/gpt-5.6-luna-fast': 1_050_000,
-  'openai/gpt-5.4-mini': 400_000,
-  'openai/gpt-5.4-nano': 400_000,
-  'openai/gpt-4.1-mini': 1_047_576,
-  'google/gemini-3.7-flash': 1_000_000,
-  'google/gemini-3.5-flash': 1_000_000,
-  'google/gemini-3.5-flash-lite': 1_000_000,
-  'google/gemini-2.5-flash': 1_000_000,
-  'openai/gpt-5-mini': 400_000,
-  'zai/glm-4.7-flash': 200_000,
-  'alibaba/qwen3.5-flash': 1_000_000,
-  'mistral/mistral-small': 262_144,
-  'zai/glm-5.3-flash': 1_000_000,
-  'zai/glm-5.1': 200_000,
-  'deepseek/deepseek-v4-flash': 1_000_000,
-  'deepseek/deepseek-v4-pro': 1_000_000,
+  'bionic/qwen3.8-9b-heretic-uncensored-mtplx': 65_536,
+  'ollama/netbench-eve': 32_768,
+  'ollama/qwen3.5:9b-mlx': 8_192,
 };
+
+const ENGINES = {
+  bionic: process.env.EVE_BIONIC_URL?.trim() || 'http://127.0.0.1:1235/v1',
+  ollama: process.env.EVE_OLLAMA_URL?.trim() || 'http://127.0.0.1:11434/v1',
+} as const;
+
+type Engine = keyof typeof ENGINES;
+
+/**
+ * Each engine answers one request at a time, so a step can wait minutes for its first byte while another visitor's
+ * turn runs. Node's fetch gives up after 5 minutes without headers (UND_ERR_HEADERS_TIMEOUT); this one waits
+ * EVE_MODEL_TIMEOUT_MS (default 15 minutes). A refused connection still fails within 5 seconds, so a stopped engine
+ * fails over to the next one quickly.
+ */
+const MODEL_TIMEOUT_MS = Math.max(60_000, Number(process.env.EVE_MODEL_TIMEOUT_MS) || 15 * 60_000);
+const dispatcher = new Agent({ headersTimeout: MODEL_TIMEOUT_MS, bodyTimeout: MODEL_TIMEOUT_MS, connectTimeout: 5_000 });
+const localFetch = ((input: Parameters<typeof undiciFetch>[0], init?: Parameters<typeof undiciFetch>[1]) =>
+  undiciFetch(input, { ...init, dispatcher })) as unknown as typeof fetch;
 
 const list = (raw: string | undefined) =>
   (raw ?? '')
@@ -71,8 +67,8 @@ const fallbacks = process.env.EVE_FALLBACK_MODELS === undefined ? DEFAULT_FALLBA
 /** Primary first, then fallbacks, no duplicates. Never empty. */
 export const MODEL_CHAIN: readonly string[] = [...new Set([EVE_MODEL, ...fallbacks])];
 
-/** Upper bound for the context window Eve assumes (keeps compaction sane for huge-window models). */
-export const EVE_CONTEXT_TOKENS = Math.max(32_000, Number(process.env.EVE_CONTEXT_TOKENS) || 200_000);
+/** Upper bound for the context window Eve assumes (compaction starts at 80 % of it). */
+export const EVE_CONTEXT_TOKENS = Math.max(16_000, Number(process.env.EVE_CONTEXT_TOKENS) || 65_536);
 
 /** After this long on a fallback model, the session tries the primary again. */
 export const EVE_MODEL_RECOVER_MS = Math.max(1, Number(process.env.EVE_MODEL_RECOVER_MINUTES) || 15) * 60_000;
@@ -81,22 +77,57 @@ export const contextWindowFor = (model: string): number => Math.min(CONTEXT_WIND
 
 export const clampIndex = (i: number): number => (Number.isFinite(i) && i > 0 ? Math.min(Math.trunc(i), MODEL_CHAIN.length - 1) : 0);
 
-export interface ModelSelection {
-  model: string;
-  modelContextWindowTokens: number;
-  modelOptions: { providerOptions: { gateway: { models: readonly string[] } } };
+/** `bionic/qwen…` → engine and model id. A bare id (no known engine prefix) goes to Ollama. */
+export function parseModel(entry: string): { engine: Engine; modelId: string } {
+  const slash = entry.indexOf('/');
+  const head = slash > 0 ? entry.slice(0, slash) : '';
+  if (head === 'bionic' || head === 'ollama') return { engine: head, modelId: entry.slice(slash + 1) };
+  return { engine: 'ollama', modelId: entry };
 }
 
-/** Selection for chain position `index`; gateway fallbacks are the rest of the chain, wrapping around. */
+const providers = new Map<Engine, ReturnType<typeof createOpenAICompatible>>();
+
+function provider(engine: Engine) {
+  let p = providers.get(engine);
+  if (!p) {
+    // Both engines listen on loopback only and need no key. includeUsage asks for token counts in the stream.
+    p = createOpenAICompatible({ name: engine, baseURL: ENGINES[engine], includeUsage: true, fetch: localFetch });
+    providers.set(engine, p);
+  }
+  return p;
+}
+
+/**
+ * The AI SDK model for a chain entry. The provider package ships its own copy of the provider types, newer than the
+ * one eve and `ai` were built with; the object is the same at runtime, so it is typed as `ai`'s model.
+ */
+export function languageModel(entry: string): Exclude<LanguageModel, string> {
+  const { engine, modelId } = parseModel(entry);
+  return provider(engine).chatModel(modelId) as unknown as Exclude<LanguageModel, string>;
+}
+
+/**
+ * Which chain entry a `step.started` model id belongs to. eve reports a direct model as its bare id or prefixed with
+ * the provider name, so both forms match.
+ */
+export function chainIndexOf(modelId: string): number {
+  const exact = MODEL_CHAIN.indexOf(modelId);
+  if (exact !== -1) return exact;
+  return MODEL_CHAIN.findIndex((entry) => {
+    const { engine, modelId: id } = parseModel(entry);
+    return modelId === id || modelId === `${engine}.chat/${id}` || modelId.endsWith(`/${id}`) || modelId.endsWith(`:${id}`);
+  });
+}
+
+export interface ModelSelection {
+  model: Exclude<LanguageModel, string>;
+  modelContextWindowTokens: number;
+}
+
+/** Selection for chain position `index`. */
 export function modelSelection(index: number): ModelSelection {
-  const i = clampIndex(index);
-  const model = MODEL_CHAIN[i]!;
-  const rest = [...MODEL_CHAIN.slice(i + 1), ...MODEL_CHAIN.slice(0, i)];
-  return {
-    model,
-    modelContextWindowTokens: contextWindowFor(model),
-    modelOptions: { providerOptions: { gateway: { models: rest } } },
-  };
+  const entry = MODEL_CHAIN[clampIndex(index)]!;
+  return { model: languageModel(entry), modelContextWindowTokens: contextWindowFor(entry) };
 }
 
 const hintFresh = () => processHint.at > 0 && Date.now() - processHint.at < EVE_MODEL_RECOVER_MS;
@@ -116,14 +147,14 @@ export function currentIndex(): number {
   return hintFresh() ? clampIndex(processHint.index) : 0;
 }
 
-const resolve = () => modelSelection(currentIndex());
-
-/** Dynamic model: re-evaluated for every step so a mid-turn failure switches model for the retried step. */
+/**
+ * Dynamic model, resolved for every step so a mid-turn failure switches model for the retried step. Only
+ * `step.started`: eve stores session and turn selections and accepts only model id strings there, while a direct
+ * provider model is a live object.
+ */
 export const dynamicModel = defineDynamic({
   events: {
-    'session.started': resolve,
-    'turn.started': resolve,
-    'step.started': resolve,
+    'step.started': () => modelSelection(currentIndex()),
   },
 });
 

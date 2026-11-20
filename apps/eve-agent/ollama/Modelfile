@@ -1,0 +1,5 @@
+# Eve's Ollama fallback: the same weights as qwen3.5:9b-mlx (no copy on disk) with a context large enough for Eve.
+# Ollama's OpenAI endpoint ignores a per-request num_ctx and serves 8,192 tokens by default; Eve's first prompt is
+# about 9,300. Create or update it with:  ollama create netbench-eve -f apps/eve-agent/ollama/Modelfile
+FROM qwen3.5:9b-mlx
+PARAMETER num_ctx 32768

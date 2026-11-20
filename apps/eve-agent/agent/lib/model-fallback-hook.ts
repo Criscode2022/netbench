@@ -1,5 +1,5 @@
 import { defineHook } from 'eve/hooks';
-import { MODEL_CHAIN, clampIndex } from './model.ts';
+import { MODEL_CHAIN, chainIndexOf, clampIndex } from './model.ts';
 import { modelState, processHint } from './model-state.ts';
 
 /**
@@ -14,12 +14,12 @@ import { modelState, processHint } from './model-state.ts';
  * Hooks that throw fail the turn, so every handler swallows its own errors.
  */
 
-/** eve failure codes that mean "the model call itself failed" (provider, gateway, quota, empty response…). */
+/** eve failure codes that mean "the model call itself failed" (engine down, model unloaded, empty response…). */
 const MODEL_FAILURE_CODES = new Set(['MODEL_CALL_FAILED', 'MODEL_STREAM_FAILED', 'EMPTY_MODEL_RESPONSE']);
 
 const isModelFailure = (code: string) => MODEL_FAILURE_CODES.has(code) || /MODEL|PROVIDER|GATEWAY|UPSTREAM/i.test(code);
 
-const indexOf = (model: string) => MODEL_CHAIN.indexOf(model);
+const indexOf = (model: string) => chainIndexOf(model);
 
 function onModelFailure(turnId: string, code: string, message: string, agent: string): void {
   try {

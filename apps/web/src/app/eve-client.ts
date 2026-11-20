@@ -5,9 +5,9 @@ const LOCAL =
 
 /** Documented local port (`eve dev --port 4010`). `eve dev` without flags still binds 2000. */
 const LOCAL_HOSTS = ['http://127.0.0.1:4010', 'http://127.0.0.1:2000'] as const;
-export const EVE_PROD = 'https://netbench-eve-criscode2022s-projects.vercel.app';
+export const EVE_PROD = 'https://netbench-eve.cristiancode.dev';
 
-/** Browser talks to a local eve process in development, the Vercel Eve host in production. */
+/** Browser talks to a local eve process in development, the Eve host on the M6 Mac in production. */
 export const EVE_HOST = LOCAL ? LOCAL_HOSTS[0] : EVE_PROD;
 
 export interface EveOption {
@@ -49,9 +49,8 @@ const MAX_STREAM_RECONNECTS = 6;
 const STREAM_BACKOFF = [1000, 2000, 4000, 8000, 12_000, 15_000];
 /** Codes eve uses when the model call itself failed; the host rotates models, so a re-send is worth it. */
 const MODEL_FAILURE_RE = /MODEL|PROVIDER|GATEWAY|UPSTREAM|TIMEOUT|RATE|429|5\d\d/i;
-/** Missing / rejected Gateway credentials will not succeed on retry. */
-const AUTH_FAILURE_RE =
-  /no credentials|gateway-auth-missing|authentication failed|VERCEL_OIDC|AI_GATEWAY_API_KEY|unauthorized|\b401\b/i;
+/** A rejected caller will not succeed on retry. */
+const AUTH_FAILURE_RE = /no credentials|authentication failed|unauthorized|\b401\b/i;
 
 interface EveEvent {
   type: string;
@@ -268,9 +267,6 @@ export class EveClient {
   /** Records a failure and schedules an automatic re-send with backoff, else surfaces the error with a manual Retry. */
   private fail(msg: string): void {
     this.busy.set(false);
-    if (AUTH_FAILURE_RE.test(msg) && LOCAL && !/login:vercel|link:eve/i.test(msg)) {
-      msg = `${msg} Local fix: npm run login:vercel && npm run link:eve, then restart npm run dev.`;
-    }
     this.error.set(msg);
     if (AUTH_FAILURE_RE.test(msg)) {
       this.retrying.set(0);

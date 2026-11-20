@@ -3,7 +3,6 @@ dist/
 .angular/
 .nest/
 .eve/
-.vercel/
 .env
 .env.local
 *.log
@@ -21,4 +20,3 @@ playwright-report/
 test-results/
 netbench-*.png
 .playwright-mcp/
-.vercel-upload.json

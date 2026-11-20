@@ -1,10 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
-export const API =
-  process.env.NETBENCH_API_URL ||
-  (process.env.VERCEL || process.env.RAILWAY_ENVIRONMENT
-    ? 'https://netbench-api.cristiancode.dev'
-    : 'http://127.0.0.1:3001');
+/** Production sets it to the API's loopback address on the hosting platform (HANDOFF §11); local dev runs Nest on :3001. */
+export const API = process.env.NETBENCH_API_URL || 'http://127.0.0.1:3001';
 
 /** Retries per Nest call on network errors, timeouts, 429 and 5xx (so 3 attempts in total). Override with EVE_NEST_RETRIES. */
 export const RETRIES = Number.isFinite(Number(process.env.EVE_NEST_RETRIES)) ? Math.max(0, Number(process.env.EVE_NEST_RETRIES)) : 2;

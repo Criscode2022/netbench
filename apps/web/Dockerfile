@@ -1,4 +1,5 @@
-# Build context is the monorepo root (Railway dockerfilePath = apps/web/Dockerfile).
+# The web app as an nginx image (build context: the repository root). Production is a static site on the hosting
+# platform instead (HANDOFF §11).
 FROM node:22-slim AS build
 WORKDIR /src
 COPY apps/web ./apps/web

@@ -118,8 +118,6 @@ function curriculumLab(engine: Engine): LabJson | undefined {
 const BUILD_VERSION =
   process.env.NETBENCH_BUILD ||
   process.env.HOSTING_COMMIT_SHA?.slice(0, 12) ||
-  process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 12) ||
-  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ||
   process.env.SOURCE_VERSION?.slice(0, 12) ||
   'dev';
 const STARTED_AT = Date.now();

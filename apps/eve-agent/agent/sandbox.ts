@@ -1,7 +1,7 @@
 import { defineSandbox } from 'eve/sandbox';
 import { justbash } from 'eve/sandbox/just-bash';
-import { vercel } from 'eve/sandbox/vercel';
 
+/** In-process bash for the agent's scratch work; nothing leaves the Eve process. */
 export default defineSandbox({
-  backend: process.env.VERCEL ? vercel({ networkPolicy: 'deny-all' }) : justbash(),
+  backend: justbash(),
 });
