@@ -1,12 +1,12 @@
 # NetBench
 
-Browser network lab for a junior network and systems administrator — plus **Eve**, a Vercel eve instructor agent.
+Browser network lab for a junior network and systems administrator — plus **Eve**, an instructor agent built with [eve](https://www.npmjs.com/package/eve) that runs on local models.
 
 **Continuing this repo (coding agents):** read [`HANDOFF.md`](./HANDOFF.md) first. It covers architecture, UI modes (Basic / mobile / desktop), Eve, deploy URLs, and what not to regress.
 
 Not Packet Tracer. Not a CCIE catalog. Eight stable device kinds, three realistic switch profiles, dual-stack IPv4/IPv6, honest drops.
 
-- **Try it:** https://netbench-www-criscode2022s-projects.vercel.app/ (no account needed)
+- **Try it:** https://netbench.cristiancode.dev/ (no account needed)
 - **Case study and docs:** https://cristiancode.dev/featured/netbench, from [`docs/`](./docs/README.md) (Spanish)
 
 ## Apps
@@ -15,7 +15,7 @@ Not Packet Tracer. Not a CCIE catalog. Eight stable device kinds, three realisti
 | --- | --- |
 | `apps/web` | Angular + Tailwind canvas, terminals, packet inspector, Eve drawer |
 | `apps/api` | NestJS lab engine, auth, lab CRUD, WebSockets, Eve tool API |
-| `apps/eve-agent` | Vercel eve project (`eve deploy`) |
+| `apps/eve-agent` | Eve, an eve agent on local models (Bionic, then Ollama) |
 | `packages/engine` | Discrete-event simulator (import this in tests) |
 
 ## Device palette
@@ -34,14 +34,13 @@ cp .env.example .env
 npm install
 npm test -w @netbench/engine
 npm test -w @netbench/api
-npm run login:vercel    # once — same Vercel account as production Eve
-npm run link:eve        # once — writes AI Gateway OIDC into apps/eve-agent/.env.local
+ollama create netbench-eve -f apps/eve-agent/ollama/Modelfile   # once, for Eve's Ollama fallback
 npm run dev             # API :3001 + UI :4200 + Eve :4010
 ```
 
 - UI: http://localhost:4200
 - API: http://localhost:3001/api/health
-- Eve: local `eve dev` on `:4010` uses the **same AI Gateway** as production (OIDC from `npm run link:eve`). Tools still talk to Nest on `:3001`, not production. Re-run `npm run link:eve` if the OIDC token expires (~24h). Alternative: set `AI_GATEWAY_API_KEY` in `.env`.
+- Eve: local `eve dev` on `:4010` uses the same local models as production: Bionic (LM Studio's app) on `:1235` with Qwen3.8 9B, then Ollama on `:11434` with `netbench-eve`. No keys, no sign-in. Tools talk to Nest on `:3001`, not production.
 
 Guest mode works without an account; the lab is saved in this browser and restored on reload. Sign in to keep it on your account and other devices. Accounts are email and password.
 
@@ -69,26 +68,22 @@ Lab JSON schema: `packages/engine/schema/lab.schema.json`.
 
 **Split is required:** the forwarding engine is a long-running Node process (not a 10s serverless timeout).
 
-| Piece | Where | Deploys |
-| --- | --- | --- |
-| Angular | Vercel project `netbench-www` | every push to `main` |
-| Eve | Vercel project `netbench-eve` (`eve deploy`, OIDC + AI Gateway) | every push to `main`; by hand with `npm run deploy:eve` |
-| Nest API + engine | The owner's own hosting platform, on a Mac, project `netbench-api`, served at `https://netbench-api.cristiancode.dev` through Cloudflare and Tailscale Funnel | every push to `main`, after the engine and API tests pass |
-| Postgres | Neon project `netbench`; `sql/schema.sql` is applied by the API at start | — |
+All three apps are projects on the owner's own hosting platform, on a Mac mini, linked to this repository's `main`. Every push deploys them.
 
-That path is HTTP only, so production has no WebSocket: the web app polls the session state every 1.5 s (`apps/web/src/app/api.ts`). Localhost keeps the socket. Any other always-on Node ≥ 24 host works too: `apps/api/Dockerfile` (repo root as context), env `PORT`, `JWT_SECRET`, `DATABASE_URL`.
+| Piece | Project | Served at | Deploys |
+| --- | --- | --- | --- |
+| Angular | `netbench`, static, on Cloudflare Pages | https://netbench.cristiancode.dev | every push to `main` |
+| Eve | `netbench-eve`, a Node process (`eve build` / `eve start`) | https://netbench-eve.cristiancode.dev | every push to `main` |
+| Nest API + engine | `netbench-api`, a Node process | https://netbench-api.cristiancode.dev | every push to `main`, after the engine and API tests pass |
+| Postgres | Neon project `netbench`; `sql/schema.sql` is applied by the API at start | — | — |
 
-Eve's models must be open to the AI Gateway **free tier** (`availableToFreeTier` on https://vercel.com/ai-gateway/models) unless the account buys credits; see `apps/eve-agent/agent/lib/model.ts`.
+The two processes are reached through Cloudflare and Tailscale Funnel. That path is HTTP only, so production has no WebSocket: the web app polls the session state every 1.5 s (`apps/web/src/app/api.ts`). Localhost keeps the socket. The API also runs on any always-on Node ≥ 24 host: `apps/api/Dockerfile` (repo root as context), env `PORT`, `JWT_SECRET`, `DATABASE_URL`.
 
-```bash
-npm run login:vercel      # once, if `vercel whoami` says Logged out
-npm run link:eve          # link apps/eve-agent → Vercel project netbench-eve
-npm run deploy:eve        # production deploy of the Eve agent (also: npm run deploy)
-```
+Eve's models run on the same Mac: Bionic first, Ollama as the fallback (`apps/eve-agent/agent/lib/model.ts`). A multi-step fix takes about two and a half minutes on a 9B model, and the engines answer one conversation at a time.
 
 Health:
 - API `GET https://netbench-api.cristiancode.dev/api/health` (`version` is the deployed commit; `eveTools: true`)
-- Eve `GET https://netbench-eve-criscode2022s-projects.vercel.app/eve/v1/health` (`{"ok":true,"status":"ready"}`)
-- Angular `https://netbench-www-criscode2022s-projects.vercel.app/`
+- Eve `GET https://netbench-eve.cristiancode.dev/eve/v1/health` (`{"ok":true,"status":"ready"}`)
+- Angular `https://netbench.cristiancode.dev/`
 
 Full runbook: [`docs/08-deploy.md`](./docs/08-deploy.md).

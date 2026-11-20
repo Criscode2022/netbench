@@ -22,15 +22,21 @@ Añadir una IP, poner la puerta de enlace o encender un puerto desde el inspecto
 
 ## El motor en un proceso que no se apaga
 
-El motor guarda cada laboratorio en memoria (tablas ARP, MAC, vecinos OSPF, concesiones DHCP) y lo hace avanzar en el tiempo. Una función sin servidor que vive 10 segundos y no recuerda nada entre llamadas lo obligaría a reconstruir la red en cada comando. Por eso la API es un proceso de Node de larga vida, y la web y Eve van aparte en Vercel.
+El motor guarda cada laboratorio en memoria (tablas ARP, MAC, vecinos OSPF, concesiones DHCP) y lo hace avanzar en el tiempo. Una función sin servidor que vive 10 segundos y no recuerda nada entre llamadas lo obligaría a reconstruir la red en cada comando. Por eso la API es un proceso de Node de larga vida, y la web y Eve van aparte.
 
 ## Eve no puede cambiar nada sin token
 
 Eve es un modelo de lenguaje, y un modelo puede equivocarse o ser engañado. Sus herramientas de lectura son libres; las que cambian la red necesitan un `confirmToken` que emite la API, de un solo uso y para un propósito. Eve lo pide justo antes de cada cambio y nunca acepta uno que diga el modelo. Por defecto la aprobación es automática, para que la demo sea fluida; con `EVE_APPROVAL=always` o el interruptor del cajón, cada cambio espera a que la persona lo apruebe.
 
-## Modelos de varios proveedores
+## Modelos locales, aunque sean más lentos
 
-La cadena de modelos de Eve mezcla proveedores a propósito: si uno cae, el siguiente no cae por la misma razón. El AI Gateway prueba la cadena dentro de una llamada, y un hook de eve avanza de modelo entre llamadas y lo recuerda por sesión. Ver [Eve](./18-eve.md).
+Eve usó modelos en la nube por el AI Gateway de Vercel hasta noviembre de 2026. Ese camino dependía de un plan gratuito que cambia sin avisar (el 18 de noviembre los seis modelos de la cadena salieron de él y Eve dejó de responder) y de una cuenta de Vercel. Ahora Eve usa dos motores locales del mismo Mac, Bionic y Ollama: no cuesta nada, ningún mensaje sale del Mac y no hay cuenta que mantener.
+
+El precio es la calidad y el tiempo. Un 9B tarda un par de minutos en un arreglo de varios pasos y acierta menos que un modelo grande, y el Mac atiende una conversación a la vez. Para una demo de portafolio se aceptó; si hiciera falta velocidad, `EVE_MODEL` y `EVE_FALLBACK_MODELS` permiten otra cadena sin tocar código. Ver [Eve](./18-eve.md#los-modelos).
+
+## Un proyecto por pieza, del mismo repositorio
+
+La web, la API y Eve son tres proyectos de la plataforma de hosting enlazados al mismo repositorio y la misma rama, como hacen Vercel y Netlify con un monorepo. Así la web es estática en un CDN, que sigue en pie con el Mac apagado, y la API y Eve son procesos que se reinician por separado. La plataforma no lo permitía; se cambió el 20 de noviembre: un segundo enlace del mismo repositorio vale si da su propio subdominio.
 
 ## Modelos y ejercicios por pares
 

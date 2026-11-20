@@ -20,10 +20,19 @@ title: Testing · Eve y navegador
 
 ```bash
 npm run dev:api                 # la API en :3001
-cd apps/eve-agent && npx eve eval
+cd apps/eve-agent && npx eve eval --max-concurrency 1
 ```
 
-Necesitan el AI Gateway (`npm run link:eve`) y gastan créditos, así que no corren en cada despliegue. Los seis primeros escenarios tienen además su versión sin modelo en los tests del [motor](./13-testing-unit.md) y de la [API](./14-testing-integration.md).
+Necesitan Bionic u Ollama en el mismo Mac y tardan unos minutos cada uno, así que no corren en cada despliegue. Van de uno en uno (`--max-concurrency 1`): el motor atiende una petición a la vez, y en paralelo las últimas esperan tanto que fallan. Los seis primeros escenarios tienen además su versión sin modelo en los tests del [motor](./13-testing-unit.md) y de la [API](./14-testing-integration.md).
+
+### Con modelos locales
+
+Los evals se escribieron con modelos grandes en la nube. Con los 9B locales, entre el 19 y el 20 de noviembre de 2026, pasó 1 de 7 (`refuse-bgp`):
+
+- Las preguntas de conocimiento no abren laboratorio. El 9B intentaba leer uno, recibía «sesión caducada» y pedía recargar en vez de contestar. Las instrucciones de Eve ahora le piden responder con la causa y los comandos cuando no hay laboratorio; `shutdown-iface` ya da la respuesta buena, pero falla la comprobación de que llama a `get_lab_state`, que sin laboratorio no tiene sentido.
+- Los dos de construcción fallaron por el motor, no por la respuesta: en paralelo, las peticiones en cola superaron los 5 minutos de espera de Node, y Bionic dejó de responder durante la primera ejecución.
+
+Con un laboratorio abierto, que es como se usa desde la web, los dos modelos arreglan el ejercicio de la puerta de enlace y Check pasa. Ver [Eve](./18-eve.md#límites).
 
 ## En el navegador
 

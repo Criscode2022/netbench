@@ -9,15 +9,17 @@ title: Arquitectura
 ```
 Navegador (Angular)  --REST, cada 1,5 s el estado-->  API Nest  -->  Engine (uno por sesión)
                                                          |
-Cajón de Eve  --NDJSON-->  Eve en Vercel  --HTTP-->  /api/eve/tools/*
+Cajón de Eve  --NDJSON-->  Eve (mismo Mac)  --HTTP-->  /api/eve/tools/*
+                               |
+                         Bionic u Ollama (modelos locales)
                                                          |
                                                       Postgres (Neon): usuarios y laboratorios
 ```
 
 | Pieza | Dónde corre | Por qué ahí |
 | --- | --- | --- |
-| Web (Angular) | Vercel, estática | Son ficheros; un CDN basta |
-| Eve | Vercel (`eve deploy`) | eve usa el AI Gateway de Vercel con OIDC, sin claves en el código |
+| Web (Angular) | Cloudflare Pages, estática, publicada por la plataforma de hosting como `netbench.cristiancode.dev` | Son ficheros; un CDN basta, y sigue en pie con el Mac apagado |
+| Eve | Un proceso de Node en el mismo Mac, publicado como `netbench-eve.cristiancode.dev` | Los modelos son locales (Bionic y Ollama), así que Eve va donde están; llama a la API por la red local del Mac |
 | API + motor | Un proceso de Node en un Mac propio, publicado como `netbench-api.cristiancode.dev` | El motor guarda cada laboratorio en memoria y lo hace avanzar en el tiempo; no cabe en una función de 10 segundos |
 | Postgres | Neon | Cuentas y laboratorios guardados |
 
@@ -56,5 +58,5 @@ Eve no habla con el motor directamente. Sus herramientas son llamadas HTTP a `/a
 | --- | --- |
 | La API | La web carga y enseña el último laboratorio guardado en el navegador; los comandos fallan con «Cannot reach the lab API» y el pie lo dice |
 | Postgres | Invitados y laboratorios en memoria; iniciar sesión y «My labs» fallan |
-| Eve o el AI Gateway | Todo menos el cajón de Eve, que enseña el error y reintenta |
-| Ese Mac | La web y Eve; la API no, porque vive en él |
+| Eve, o Bionic y Ollama a la vez | Todo menos el cajón de Eve, que enseña el error y reintenta; si solo cae Bionic, Eve pasa a Ollama |
+| Ese Mac | La web, que está en Cloudflare; la API y Eve no, porque viven en él |

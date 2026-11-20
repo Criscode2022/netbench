@@ -34,6 +34,15 @@ En noviembre el servicio ya no existía y la demo se quedó sin API. Se movió a
 
 Al revisar la API antes de volver a publicarla apareció `POST /auth/magic`: como no había envío de correo, devolvía el token de inicio de sesión en la respuesta, y con el correo de una cuenta bastaba para entrar en ella. Nada lo usaba, así que se quitó. Ver [Cuentas e invitados](./06-auth.md#lo-que-se-quitó).
 
+### Eve sin la nube
+
+En noviembre de 2026 Eve se quedó sin modelos (los de su cadena salieron del plan gratuito del AI Gateway) y se decidió dejar Vercel. Pasar a los modelos locales del Mac trajo cuatro problemas:
+
+- **El contexto de Ollama.** Su API compatible con OpenAI ignora el tamaño de contexto pedido y sirve 8.192 tokens; el primer mensaje de Eve tiene unos 9.300, así que se cortaba el principio, que son las instrucciones. Se creó `netbench-eve`, los mismos pesos con 32.768 tokens, sin copiarlos.
+- **La espera.** Cada motor atiende una petición a la vez, y Node abandona una petición que tarda más de 5 minutos en empezar a responder. Las llamadas al modelo esperan ahora hasta 15.
+- **Un sandbox en Docker.** Solo el agente principal fijaba su sandbox. Los subagentes usaban el de eve por defecto, que elige Docker si lo encuentra, y el constructor descargó una imagen y arrancó un contenedor. Ahora los tres fijan just-bash y Eve no tiene herramientas de terminal ni de archivos.
+- **Tres proyectos de un repositorio.** La plataforma de hosting no dejaba enlazar dos veces el mismo repositorio y rama. Se cambió: un segundo enlace vale si trae su propio subdominio.
+
 ### Un test que fallaba la mitad de las veces
 
 «eve tools resolve a browser labKey to the newest session» abría dos sesiones seguidas con la misma `labKey` y esperaba la segunda. A veces las dos tenían el mismo milisegundo, y la API se quedaba con la primera: Eve habría leído un laboratorio que el navegador ya había cambiado. El empate ahora lo gana la sesión más nueva. Importaba más desde que los tests son la puerta del despliegue.
@@ -43,11 +52,12 @@ Al revisar la API antes de volver a publicarla apareció `POST /auth/magic`: com
 - **48 laboratorios** comprobados en cada ejecución de los tests: los 22 modelos pasan tal cual, los 26 ejercicios fallan tal cual y pasan con su parche, y aplicarlo dos veces no rompe nada.
 - **El mismo motivo en todas partes**: un test comprueba que la caída de `get_path` es la misma que enseña el inspector de paquetes.
 - **101 tests** (64 del motor, 37 de la API) en unos 3 segundos, y **7 evals** de Eve. `tsc --noEmit` pasa limpio en el motor y en la API.
-- **Desplegado en cada push**, con los tests como puerta, desde el 18 de noviembre de 2026.
+- **Desplegado en cada push**, con los tests como puerta, desde el 18 de noviembre de 2026; desde el 20, la web, la API y Eve en la misma plataforma y sin servicios de pago.
 - **Cinco idiomas** en la interfaz.
 
 ## Pendiente
 
 - La web no tiene tests automáticos; se prueba con el build de producción y a mano en el navegador, a 390 × 844 y a 1280 × 800.
 - No hay CI propia: los tests corren en cada despliegue de la API, pero un commit que solo toca la web no los pasa. Ver [Testing · CI](./16-testing-ci.md).
-- La API depende de que ese Mac esté encendido.
+- La API y Eve dependen de que ese Mac esté encendido; la web no, porque está en Cloudflare.
+- Eve con un 9B local es lento (unos dos minutos y medio para un arreglo de varios pasos), atiende una conversación a la vez y falla más evals que con modelos grandes.

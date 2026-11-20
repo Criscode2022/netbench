@@ -24,7 +24,7 @@ Si algo falla, ese commit queda como fallido y la API anterior sigue sirviendo. 
 
 ## Lo que no cubre
 
-- **La web y Eve no pasan por esa puerta.** Vercel los despliega en cada push sin correr los tests. Un commit que solo toca `apps/web` llega a producción aunque el motor esté roto, porque el build de Angular no importa el motor.
+- **La web y Eve no pasan por esa puerta.** Son otros dos proyectos de la misma plataforma, y su build no corre los tests. Un commit que solo toca `apps/web` llega a producción aunque el motor esté roto, porque el build de Angular no importa el motor.
 - **Los evals** no corren solos (ver [Testing · Eve y navegador](./15-testing-e2e.md)).
 - **El chequeo de tipos** (`npm run build -w @netbench/engine` y `-w @netbench/api`) pasa limpio, pero no está en el build de la plataforma.
 

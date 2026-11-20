@@ -54,7 +54,6 @@ Angular con componentes standalone y plantillas en ficheros aparte. 16 ficheros 
 | `terminal.ts`, `packets.ts`, `lab-picker.ts`, `mine-picker.ts`, `cheat-sheet.ts`, `toasts.ts` | Los componentes del muelle y la cabecera |
 | `lab-history.ts`, `lab-library.ts` | Deshacer y rehacer; los laboratorios propios |
 | `i18n/` | Un diccionario por idioma; el tipo de las claves sale del inglés |
-| `vercel.json` | Salida `dist/web/browser` y la reescritura de la SPA |
 
 ## `apps/eve-agent`
 
@@ -73,4 +72,3 @@ Angular con componentes standalone y plantillas en ficheros aparte. 16 ficheros 
 | --- | --- |
 | `npm run dev` | API en `:3001`, web en `:4200` y Eve en `:4010` a la vez |
 | `npm test` | Tests del motor y de la API |
-| `npm run deploy:eve` | Despliega Eve en Vercel |

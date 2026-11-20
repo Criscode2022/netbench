@@ -44,4 +44,4 @@ La web está en **Angular 22.1 y TypeScript 6.0**, sin Zone.js, con **Tailwind C
 
 ## Build
 
-`ng build` con `@angular/build`. El paquete inicial pesa unos 960 kB (208 kB comprimido). Vercel publica `dist/web/browser` con una reescritura a `index.html` para la SPA.
+`ng build` con `@angular/build`. El paquete inicial pesa unos 960 kB (208 kB comprimido). La plataforma de hosting sube `dist/web/browser` a Cloudflare Pages, que devuelve `index.html` en las rutas que no existen.

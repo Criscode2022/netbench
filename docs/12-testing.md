@@ -21,7 +21,7 @@ npm test -w @netbench/engine      # 64, sin nada levantado
 npm test -w @netbench/api         # 37, la aplicación Nest en memoria
 npm run build -w @netbench/engine # tsc --noEmit
 npm run build -w @netbench/api    # tsc --noEmit
-cd apps/eve-agent && npx eve eval # los 7 evals; necesitan el AI Gateway y la API en :3001
+cd apps/eve-agent && npx eve eval --max-concurrency 1 # los 7 evals; Bionic u Ollama y la API en :3001
 ```
 
 ## Convenciones
@@ -35,4 +35,4 @@ cd apps/eve-agent && npx eve eval # los 7 evals; necesitan el AI Gateway y la AP
 ## Qué no está cubierto
 
 - **La web no tiene tests automáticos.** Se comprueba con el build de producción, que verifica los tipos de las plantillas, y a mano en el navegador, a 390 × 844 y a 1280 × 800.
-- **Los evals no corren solos**: necesitan el AI Gateway, cuestan créditos y su resultado depende del modelo.
+- **Los evals no corren solos**: necesitan los modelos locales, tardan (unos minutos cada uno) y su resultado depende del modelo.

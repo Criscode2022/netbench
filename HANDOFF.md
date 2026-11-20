@@ -2,13 +2,13 @@
 
 Read this file before changing code. It is the continuation brief for another coding agent: product rules, architecture, how to run and deploy, UI modes, Eve, tests, recent work, and what not to break.
 
-Last updated: 2026-11-18 (API moved off Railway to the owner's hosting platform, polling instead of a socket in production, magic-link sign-in removed, Eve on AI Gateway free-tier models, case-study docs in `docs/`). Repo: `https://github.com/Criscode2022/netbench` (public; it was `network-lab`). Default branch: `main`.
+Last updated: 2026-11-20 (web app and Eve moved off Vercel to the owner's hosting platform, Eve on local models — Bionic first, Ollama second; before that, on 2026-11-18: API moved off Railway, polling instead of a socket in production, magic-link sign-in removed, case-study docs in `docs/`). Repo: `https://github.com/Criscode2022/netbench` (public; it was `network-lab`). Default branch: `main`.
 
 ---
 
 ## 1. What this is
 
-NetBench is a **browser network lab for junior net/sysadmins**. Users draw a wired/wireless topology, configure IPv4/IPv6, run a per-node CLI, inspect packets with honest drop reasons, save labs, and ask **Eve** (Vercel eve agent) to explain / fix / build — with HITL confirm before mutations.
+NetBench is a **browser network lab for junior net/sysadmins**. Users draw a wired/wireless topology, configure IPv4/IPv6, run a per-node CLI, inspect packets with honest drop reasons, save labs, and ask **Eve** (an eve agent on local models) to explain / fix / build — with HITL confirm before mutations.
 
 It is **not** Packet Tracer and **not** a CCIE catalog.
 
@@ -29,9 +29,9 @@ It is **not** Packet Tracer and **not** a CCIE catalog.
 
 | Piece | URL |
 | --- | --- |
-| **Angular app (use this)** | https://netbench-www-criscode2022s-projects.vercel.app/ |
-| Eve agent | https://netbench-eve-criscode2022s-projects.vercel.app |
-| Eve health | https://netbench-eve-criscode2022s-projects.vercel.app/eve/v1/health → `{"ok":true,"status":"ready"}` |
+| **Angular app (use this)** | https://netbench.cristiancode.dev/ |
+| Eve agent | https://netbench-eve.cristiancode.dev |
+| Eve health | https://netbench-eve.cristiancode.dev/eve/v1/health → `{"ok":true,"status":"ready"}` |
 | Nest API | https://netbench-api.cristiancode.dev/api |
 | API health | https://netbench-api.cristiancode.dev/api/health → `version` is the deployed commit |
 | API WebSocket | none in production (HTTP-only path); the web app polls `GET /sessions/:id/state` |
@@ -39,7 +39,7 @@ It is **not** Packet Tracer and **not** a CCIE catalog.
 
 Railway (`api-production-caeb…`, `web-production-033453…`) answered "Application not found" by November 2026 and is gone. Do not point anything back at it.
 
-GitHub production Vercel checks on `main` also exist for extra project names (`netbench-web`, `netbench-lab`, `netbench-app`, `netbench-angular`, `netbench`). The **canonical UI** is `netbench-www`.
+Vercel (`netbench-www-criscode2022s-projects.vercel.app`, `netbench-eve-…`, and the extra project names `netbench-web`, `netbench-lab`, `netbench-app`, `netbench-angular`, `netbench`) was left on 2026-11-20 at the owner's request. Do not deploy there or point anything at it; the owner deletes those projects.
 
 After UI commits, tell the user the Angular URL and that they may need a hard refresh.
 
@@ -52,7 +52,7 @@ network-lab/
   packages/engine/     @netbench/engine — discrete-event simulator (vitest)
   apps/api/            @netbench/api — NestJS REST + WS (vitest)
   apps/web/            @netbench/web — Angular 22 standalone + Tailwind v4
-  apps/eve-agent/      Vercel eve project (defineAgent / defineTool)
+  apps/eve-agent/      Eve, an eve agent on local models (defineAgent / defineTool)
   docs/                case-study docs in Spanish, NN-name.md (the portfolio publishes them), README.md index
   sql/schema.sql       Neon tables
   HANDOFF.md           this file
@@ -67,13 +67,14 @@ npm workspaces. Use Node >= 24 (the Eve build rejects older Node). Root `npm ins
 
 ```
 Angular workspace  --REST+WS-->  Nest SimService  -->  Engine (one per session)
-Eve drawer (browser) --NDJSON-->  Vercel Eve host  --HTTP-->  Nest /api/eve/tools/*
+Eve drawer (browser) --NDJSON-->  Eve host (M6)  --HTTP-->  Nest /api/eve/tools/*
+                                     |-->  Bionic :1235, then Ollama :11434 (local models)
 Mutating Eve tools: (optional HITL Approve)  then  host mints Nest confirmToken  then  apply
 ```
 
 - Localhost Angular uses `/api` and `ws://host/ws` via `apps/web/proxy.conf.json` → `127.0.0.1:3001`.
 - Production Angular uses `https://netbench-api.cristiancode.dev/api` and **no socket** (`WS` is `null` off localhost): `Api.poll()` reads the state every 1.5 s, hands the canvas only unseen packets, and `live` drives the footer LED. The API caches CORS preflights 10 min so each poll is one request.
-- Production Eve host is **Vercel**. See `apps/web/src/app/eve-client.ts` `EVE_HOST`.
+- Production Eve host is `https://netbench-eve.cristiancode.dev`, a process on the hosting platform. See `apps/web/src/app/eve-client.ts` `EVE_HOST`.
 - Eve stream is NDJSON (`message.appended/completed`, `input.requested` HITL, `step.failed`).
 
 ---
@@ -196,7 +197,7 @@ Global prefix `/api`. CORS `origin: true`. Long-running: `tsx src/main.ts` (scri
 
 `purpose` values: `apply_lab_patch`, `apply_device_config`, `build_lab`. Missing token → 403. Rate limit: 120 CLI/tool calls per minute per session (`NB_RATE_LIMIT`); a 429 carries a `Retry-After` header (`RateLimitException` + `rate-limit.filter.ts`) and `retryAfter` in the body.
 
-**Idempotent replay** (`SimService.replayed/remember`): the three mutating Eve tool routes accept `idempotencyKey` (body, or `Idempotency-Key` header). A repeat within 10 min returns the stored response with `replayed: true` instead of applying again or failing with 403 on the already-consumed `confirmToken`; a key reused for another purpose is 409. `GET /api/health` reports `version` (`NETBENCH_BUILD` / `RAILWAY_GIT_COMMIT_SHA` / `VERCEL_GIT_COMMIT_SHA`, else `dev`), `uptimeSec`, `eveTools: true`, `idempotency: true` — the Eve host uses these to tell "old deploy" from "down".
+**Idempotent replay** (`SimService.replayed/remember`): the three mutating Eve tool routes accept `idempotencyKey` (body, or `Idempotency-Key` header). A repeat within 10 min returns the stored response with `replayed: true` instead of applying again or failing with 403 on the already-consumed `confirmToken`; a key reused for another purpose is 409. `GET /api/health` reports `version` (`NETBENCH_BUILD` / `HOSTING_COMMIT_SHA` / `SOURCE_VERSION`, else `dev`), `uptimeSec`, `eveTools: true`, `idempotency: true` — the Eve host uses these to tell "old deploy" from "down".
 
 DI: Nest ESM — inject with `@Inject(Class)` where needed. Do not assume string tokens.
 
@@ -210,7 +211,7 @@ DI: Nest ESM — inject with `@Inject(Class)` where needed. Do not assume string
 
 Persistent `/ws`. Messages: `{ type: 'cli', deviceId, line }`, `{ type: 'cancel' }`. Server pushes `{ type: 'cli', output, events, state }` and periodic `state`.
 
-Docker image: `apps/api/Dockerfile` (monorepo context). `start.sh` also starts eve on `:4010` in-container; **browsers still must use the Vercel Eve host**.
+Docker image: `apps/api/Dockerfile` (monorepo context) builds the API only. Eve has no image: it needs Bionic or Ollama on the same machine.
 
 Env: `PORT`, `HOST` (listen address; default `0.0.0.0`, the hosting platform sets `127.0.0.1`), `JWT_SECRET`, `DATABASE_URL`, optional `EVE_ORIGIN`.
 
@@ -238,7 +239,6 @@ Angular **22** standalone + signals + Tailwind **v4**. **No zone.js** (zoneless)
 | `src/styles.css` | Tailwind v4 `@theme` tokens (`ink-*`, `brand-*`, `ok/warn/danger/eve`), component classes (`.btn*`, `.chip*`, `.field`, `.seg`, `.led*`, `.card`), `.grid-canvas` dot grid |
 | `src/index.html` | `viewport-fit=cover`, Inter + JetBrains Mono, `favicon.svg` (in `public/`) |
 | `proxy.conf.json` | `/api` `/ws` → :3001, `/eve` → :4010 |
-| `vercel.json` | `outputDirectory: dist/web/browser`; SPA rewrite |
 
 Route: `''` → `Workspace`. `App` is an inline `<router-outlet />` (the Angular starter `app.html` was removed).
 
@@ -350,16 +350,17 @@ Do **not** commit `netbench-*.png` (root `.gitignore`). Playwright MCP writes th
 
 ## 8. Eve (`apps/eve-agent`)
 
-eve **0.47.x**. `defineAgent({ model })` only — **no `name`**. Sandbox: just-bash locally; Vercel sandbox on Vercel.
+eve **0.47.x**, self-hosted (`eve build` / `eve start`). `defineAgent({ model })` only — **no `name`**. Sandbox: just-bash, pinned in `agent/sandbox.ts` **and in each subagent's `sandbox.ts`** (a subagent without one gets eve's default backend, which picks Docker when a daemon answers and pulls `ghcr.io/vercel/eve`). `bash`, `read_file`, `write_file`, `web_search` and `web_fetch` are disabled in the root agent and every subagent (`disableTool()` files under each `tools/`).
 
-- Model config is shared in `agent/lib/model.ts` and spread into the root agent and every subagent (`...modelConfig`; keep the explicit `model:` literal next to it for eve's AST tooling). `model` is a **`defineDynamic` resolver** (`session.started` / `turn.started` / `step.started`) over `MODEL_CHAIN` = primary `minimax/minimax-m3.1-flash` + `EVE_FALLBACK_MODELS` (default `openai/gpt-5-mini` → `google/gemini-2.5-flash` → `zai/glm-4.7-flash` → `alibaba/qwen3.5-flash` → `mistral/mistral-small`, deliberately different providers, **all open to the AI Gateway free tier**; the previous chain left the free tier and every turn failed with `gateway-free-tier-model-restricted` until 2026-11-18). Two fallback layers: every call carries `providerOptions.gateway.models` (the rest of the chain, wrapped) so the AI Gateway fails over inside one request; and `agent/lib/model-fallback-hook.ts` (re-exported as `hooks/model-fallback.ts` by the root agent **and** each subagent — subagent hooks only fire in their own scope) advances a durable per-session index (`defineState('netbench.model-fallback')` in `lib/model-state.ts`) on `step.failed` / `turn.failed` with a model code, so the retried step runs on the next model. A process-wide hint seeds new sessions while the primary is down; the primary is retried after `EVE_MODEL_RECOVER_MINUTES` (15). Per-model context windows are in `CONTEXT_WINDOW`, capped by `EVE_CONTEXT_TOKENS` (200000). `compaction.thresholdPercent 0.8`; session token limits disabled. **Do not** pick a model without checking `availableToFreeTier` on https://vercel.com/ai-gateway/models — the account is on the free tier and anything else returns `MODEL_CALL_FAILED`.
-- Channel `agent/channels/eve.ts`: `auth: [vercelOidc(), localDev(), none()]`, `cors: true` so browser guests work.
+- Model config is shared in `agent/lib/model.ts` and spread into the root agent and every subagent (`...modelConfig`; keep the explicit `model:` literal next to it for eve's AST tooling). Models are **local only**, through `@ai-sdk/openai-compatible`: `MODEL_CHAIN` = `bionic/qwen3.8-9b-heretic-uncensored-mtplx` (Bionic, LM Studio's app, `EVE_BIONIC_URL` default `http://127.0.0.1:1235/v1`, 65,536-token context, kept loaded by Mac mini Monitor) then `ollama/netbench-eve` (`EVE_OLLAMA_URL` default `http://127.0.0.1:11434/v1`). `netbench-eve` is `qwen3.5:9b-mlx` with `num_ctx 32768` from `apps/eve-agent/ollama/Modelfile` (`ollama create netbench-eve -f …`): Ollama's OpenAI endpoint ignores a per-request context and serves 8,192 tokens, less than Eve's first prompt (~9,300). It takes ~11 GB when loaded, Bionic's model ~5.5 GB. The resolver is a `defineDynamic` on **`step.started` only** (eve accepts only id strings for session/turn selections, and a direct provider model is a live object). Model calls use undici with `headersTimeout`/`bodyTimeout` `EVE_MODEL_TIMEOUT_MS` (15 min) and a 5 s connect timeout: an engine serves one request at a time, so a queued step can wait minutes, while a stopped engine fails over quickly. `agent/lib/model-fallback-hook.ts` (re-exported as `hooks/model-fallback.ts` by the root agent **and** each subagent) advances a durable per-session index on `step.failed` / `turn.failed` with a model code; `chainIndexOf()` matches eve's reported `modelId` to a chain entry. The primary is retried after `EVE_MODEL_RECOVER_MINUTES` (15). Context windows are in `CONTEXT_WINDOW`, capped by `EVE_CONTEXT_TOKENS` (65,536). `EVE_MODEL` / `EVE_FALLBACK_MODELS` take `bionic/<id>` or `ollama/<id>` entries.
+- Channel `agent/channels/eve.ts`: `auth: [localDev(), none()]`, `cors: true` so browser guests work.
 - Tools under `agent/tools/*.ts` (subagent tool files re-export them). Mutating tools use `mutationApproval()` from `agent/lib/approval.ts`; `EVE_APPROVAL` = `auto` (default, `never()`), `dangerous` (pause only when the tool's `dangerous(input)` flags it: whole-lab replace, device removal, `shutdown`), `once`, `always` (`EVE_REQUIRE_APPROVAL=1` is the legacy alias). Every call still mints its own `confirmToken` via `POST /api/eve/tools/confirm` (never take one from the model) and sends a fresh `idempotencyKey` so a timed-out attempt that already applied is replayed by the API, not applied twice. Inputs pass `agent/lib/guards.ts` first (placeholder `labId`, blank/out-of-scope/destructive CLI, empty patches, bad `Name:port` cables) so a bad model call costs no network round trip.
 - `agent/lib/nest.ts`: per-attempt timeout (`EVE_NEST_TIMEOUT_MS` 25 s; `build_lab` 60 s), 2 retries with jittered backoff on network/timeout/429/5xx (`EVE_NEST_RETRIES`), `Retry-After` honoured. Every failure becomes a `NestError` with a `kind` (`route-missing` = 404 `Cannot POST /api/…` i.e. **the deployed API predates the route, redeploy apps/api**; `stale-session` = 404 from the session lookup; `rate-limit`, `forbidden`, `bad-request`, `server`, `network`, `timeout`) and a one-line instruction for the model appended to the message. `apiHealth()` probes `GET /api/health` (memoised 5 s) and the read-only `api_status` tool exposes API health/version, whether a `labId` still resolves and the current model — `instructions.md` tells Eve to use it instead of guessing ("the EVE-NG engine is down" is banned).
 - `build_lab` takes `spec` (sentence) **or** `lab` (full lab JSON, zod schema in `agent/lib/lab-schema.ts`, ≤ 40 devices / 80 cables). Nest validates with `validateLab`, replays startup lines and returns `startupErrors`, `check` and `summary`, so the builder can fix rejected lines and rebuild. The spec path itself now scales to 12 PCs by adding trunked switches.
 - Subagents: explainer / fixer / builder with skills in `agent/skills/`. Builder instructions carry per-kind startup templates, the port table and an addressing plan.
 - Evals: `apps/eve-agent/evals/*.eval.ts` (shutdown iface, ROAS, OSPF, wifi nmcli, refuse BGP, build office, build campus JSON).
-- Local: `npm run login:vercel && npm run link:eve` once (same Vercel project `netbench-eve` / AI Gateway OIDC as production), then `npm run dev` (Eve on `127.0.0.1:4010`, Nest on `:3001`). `npx eve build` is the compile check (`tsc` is red on pre-existing `.ts`-extension and `sandbox.ts` typing issues). Deploy: `npm run deploy:eve`.
+- Local: `npm run dev` (Eve on `127.0.0.1:4010`, Nest on `:3001`); `dev.mjs` prints whether Bionic and Ollama answer. `npx eve build` is the compile check (`tsc` only reports the pre-existing `.ts`-extension import, TS5097). Deploy: push to `main`; the hosting platform rebuilds `netbench-eve` (§11).
+- Evals: run them **one at a time** (`npx eve eval --max-concurrency 1`). In parallel, the queued requests on one local engine timed out, and on 2026-11-19 Bionic stopped answering during a parallel run. Results on local models (2026-11-19/20) are far below the cloud models': see §10.
 - Drawer errors: read `data.message` / `data.error` / `code`, not only `data.error`.
 
 Angular drawer (`eve-client.ts`): the context block prepended to every message carries the whole topology (devices, addresses, gateways, port state), last Check, recent drops and last trace (capped at 40 devices). **HITL by `kind`**: `question` always reaches the user (card with option buttons; `allowFreeform` or option-less questions are answered by typing in the composer — `sendEve()` routes to `eve.answer()`; a typed option label/index resolves the option); `tool-approval` is auto-answered when **Auto-approve** (`nb_eve_auto`, default on) is on; `session-limit` is always answered `continue`. Requests queue (`pendingCount`), auto-answered ones never flash in the card. **Auto-retry**: a failed turn is re-sent up to 3× (2 s / 5 s / 12 s, jittered, `retry in Ns` hints honoured, countdown via `retryAt`) **into the same durable session** so history and the host's model rotation survive; only `session.failed` or a 404/409/410 from eve replaces the session. A `step.failed` followed by an empty `turn.completed`/`session.waiting` (eve's terminal model failure path) counts as a failed turn. **Stream reconnect**: if the NDJSON stream drops mid-turn it reconnects from the cursor up to 6× with backoff (`reconnecting`), deduping by `meta.id`; `message.appended` renders `messageSoFar` so text streams. `action.result` for `apply_*`/`build_lab` triggers `api.refresh()`.
@@ -373,8 +374,8 @@ Node **24** (eve 0.47 refuses < 24; root `engines` still says `>=20`, which is s
 ```bash
 cp .env.example .env   # JWT_SECRET, optional DATABASE_URL
 npm install
-npm run login:vercel && npm run link:eve   # once — same AI Gateway as production
-npm run dev                                # API :3001 + UI :4200 + Eve :4010
+ollama create netbench-eve -f apps/eve-agent/ollama/Modelfile   # once, Eve's Ollama fallback
+npm run dev                                # API :3001 + UI :4200 + Eve :4010 (Bionic :1235 or Ollama :11434)
 ```
 
 If API is down, the UI still loads but labs/CLI fail (`ECONNREFUSED 3001`). macOS has **no** `timeout(1)` — use `curl --max-time`.
@@ -394,43 +395,47 @@ Live API (after deploy): builtin labs Check true; `labFromSpec` OBJECTIVE senten
 
 UI changes: **verify in a real browser** at **390×844 and 1280×800**. Exercise the changed path (tap, cable, Add IP, Basic on/off). A single screenshot is not verification.
 
-Vercel production is public GET 200. Some MCP deploys hit SSO — GitHub-linked production URLs still work anonymously.
+Eve on local models (measured 2026-11-19, `ex-wrong-gateway`, "Fix it with the smallest change"): Bionic fixed it in 9 steps and ~150 s (it first tried Cisco `ip default-gateway` on the Linux PCs), Ollama in 5 steps and ~150 s with the one-line fix; Check passed both times. The 7 evals ask questions with no lab open: on local models 1 of 7 passed (`refuse-bgp`). The build evals failed on a broken Bionic and on timeouts in a parallel run; `shutdown-iface` gets the reply right but no longer calls `get_lab_state` when no lab is open (the instructions now tell Eve to answer from the message then).
 
 ---
 
 ## 11. Deploy
 
-| Service | How |
-| --- | --- |
-| Angular | Vercel project `netbench-www`, GitHub `main`. `apps/web/vercel.json` (`dist/web/browser`, SPA rewrite, `/api/*` rewrite to the API). |
-| Eve | Vercel project `netbench-eve`, GitHub `main`; by hand `npm run deploy:eve`. OIDC + AI Gateway (free tier). |
-| API | The owner's hosting platform on the M6 Mac (`~/orca/hosting-platform`), project `netbench-api` (id `ccf8e51a-ae03-468c-911a-58ae8976b75e`), kind backend, edge Cloudflare (`hp-netbench-api.pages.dev`, DNS `CNAME netbench-api.cristiancode.dev`), through Tailscale Funnel port 10000. Every push to `main`. |
-| DB | Neon project `netbench` (`winter-bird-22962986`); `sql/schema.sql` is applied by the API at start. |
+All three apps are projects on the owner's hosting platform on the M6 Mac (`~/orca/hosting-platform`), linked to this repository's `main`; every push deploys all three. The platform allows several projects per repository and branch since 2026-11-20, when each has its own subdomain.
 
-### 11.1 API on the hosting platform (read before touching the API deploy)
+| Service | Project (id) | How it is served |
+| --- | --- | --- |
+| Angular | `netbench` (`14b77286-a98e-47d1-be92-68cb66b9582e`), static | Cloudflare Pages `hp-netbench`, DNS `CNAME netbench.cristiancode.dev`. Survives the Mac being off. |
+| Eve | `netbench-eve` (`959c834e-6d43-4a56-a50a-db42b9d1c44e`), backend | Cloudflare (`hp-netbench-eve.pages.dev`) → Tailscale Funnel 10000 → the process |
+| API | `netbench-api` (`ccf8e51a-ae03-468c-911a-58ae8976b75e`), backend | Cloudflare (`hp-netbench-api.pages.dev`) → Tailscale Funnel 10000 → the process |
+| DB | Neon project `netbench` (`winter-bird-22962986`) | `sql/schema.sql` is applied by the API at start |
 
-| Setting | Value |
-| --- | --- |
-| Install | `npm ci --no-audit --no-fund --workspace @netbench/engine --workspace @netbench/api --include-workspace-root` |
-| Build | `npm test -w @netbench/engine && npm test -w @netbench/api` — the tests are the deploy gate; a failed build leaves the previous deploy serving |
-| Start | `npm run start -w @netbench/api` (the platform sets `PORT` and `HOST=127.0.0.1`) |
-| Node | 24 |
-| Variables (secret, in the platform's vault) | `DATABASE_URL` (the Neon `netbench` pooler URL), `JWT_SECRET` (new on 2026-11-18, so older browser tokens were dropped) |
+### 11.1 Project settings (read before touching a deploy)
 
-The admin is `http://127.0.0.1:4710` on the M6 (`/api/sites/<id>`, `/api/sites/<id>/runtime?since=0` for logs), `https://cristians-mac-mini-1.tailc16623.ts.net:8444` on the tailnet, and `https://hosting.cristiancode.dev` from the internet. The path is HTTP only — Cloudflare → Funnel → the platform's public listener → the process — so **no WebSocket** reaches the API; do not reintroduce a production `WS` URL without adding upgrade support to the platform first. `/api/health` reports `HOSTING_COMMIT_SHA` as `version`.
+| Setting | `netbench` (web) | `netbench-eve` | `netbench-api` |
+| --- | --- | --- | --- |
+| Install | `npm ci --no-audit --no-fund --workspace @netbench/web --include-workspace-root` | `npm ci --no-audit --no-fund --workspace @netbench/eve-agent --include-workspace-root` | `npm ci --no-audit --no-fund --workspace @netbench/engine --workspace @netbench/api --include-workspace-root` |
+| Build | `npm run build -w @netbench/web` | `npm run build -w @netbench/eve-agent` | `npm test -w @netbench/engine && npm test -w @netbench/api` — the tests are the deploy gate |
+| Output / start | `apps/web/dist/web/browser` | `npm run start -w @netbench/eve-agent` | `npm run start -w @netbench/api` |
+| Node | 24 | 24 | 24 |
+| Variables | — | `NETBENCH_API_URL=http://127.0.0.1:4712/s/netbench-api` (the API through the platform's loopback listener: 12 ms a call against ~300 ms through Cloudflare) | secret: `DATABASE_URL` (the Neon `netbench` pooler URL), `JWT_SECRET` |
+
+The platform sets `PORT` and `HOST=127.0.0.1` for the two processes. Pages serves `index.html` for unknown paths, so the web needs no SPA rule; the platform would read a `vercel.json`, so do not add one back.
+
+The admin is `http://127.0.0.1:4710` on the M6 (`/api/sites/<id>`, `/api/sites/<id>/runtime?since=0` for logs), `https://cristians-mac-mini-1.tailc16623.ts.net:8444` on the tailnet, and `https://hosting.cristiancode.dev` from the internet. The process path is HTTP only — Cloudflare → Funnel → the platform's public listener → the process — so **no WebSocket** reaches the API; do not reintroduce a production `WS` URL without adding upgrade support to the platform first. Streaming responses do pass (Eve's NDJSON stream is piped end to end). `/api/health` reports `HOSTING_COMMIT_SHA` as `version`.
 
 Verify after a deploy:
 
 ```bash
 curl -s https://netbench-api.cristiancode.dev/api/health       # "version":"<sha12>", "eveTools":true
-curl -s https://netbench-eve-criscode2022s-projects.vercel.app/eve/v1/health
+curl -s https://netbench-eve.cristiancode.dev/eve/v1/health      # {"ok":true,"status":"ready",…}
 ```
 
-Then in the browser: footer **Connected**, `ping -c 3 10.0.0.20` from PC1 in lab 1, Check passes.
+Then in the browser at https://netbench.cristiancode.dev/: footer **Connected**, `ping -c 3 10.0.0.20` from PC1 in lab 1, Check passes; on `ex-wrong-gateway`, ask Eve to fix it and wait (minutes on a local model). This Mac can cache a "no such host" for a new `*.cristiancode.dev` name; test with `curl --resolve` or Chrome `--host-resolver-rules` against the `hp-<slug>.pages.dev` address.
 
-Keep the platform's **Portfolio** switch for `netbench-api` off. The portfolio matches a project to a destacado by repository, so switching it on would point NetBench's Web link at the API. The destacado (`netbench` on cristiancode.dev) is maintained through the portfolio's MCP server, and its docs come from `docs/`.
+Keep the platform's **Portfolio** switch off for all three projects. The portfolio matches a project to a destacado by repository, so switching one on would point NetBench's Web link at whichever project it is. The destacado (`netbench` on cristiancode.dev) is maintained through the portfolio's MCP server, and its docs come from `docs/`.
 
-**History.** Until November 2026 the API was on a Railway trial (project `netbench-api`), deployed by hand with `serviceInstanceDeployV2` because the Railway GitHub App had lost access. By 2026-11-18 Railway answered "Application not found" and the demo had no API; it moved to the hosting platform that day.
+**History.** Until November 2026 the API was on a Railway trial and the web app and Eve were on Vercel, Eve on cloud models through the AI Gateway. By 2026-11-18 Railway answered "Application not found"; the API moved to the hosting platform that day. On 2026-11-20 the web app and Eve left Vercel for the same platform, and Eve moved to local models.
 
 ---
 
@@ -441,7 +446,7 @@ Keep the platform's **Portfolio** switch for `netbench-api` off. The portfolio m
 - Do not add BGP/MPLS/VXLAN/802.1X “just for completeness”.
 - Prefer `edit` for user topology; Eve mutations go through confirmToken.
 - Commit style: `fix(web): …`, `feat(engine): …` — imperative, scoped.
-- After UI work, include **https://netbench-www-criscode2022s-projects.vercel.app/** in the user-facing reply if they asked for deploy URLs.
+- After UI work, include **https://netbench.cristiancode.dev/** in the user-facing reply if they asked for deploy URLs.
 
 ---
 
@@ -471,16 +476,19 @@ Keep the platform's **Portfolio** switch for `netbench-api` off. The portfolio m
 | (uncommitted) | Realistic switches: optional backward-compatible `switchProfile`; unmanaged bridging, managed L2/native VLAN/RSTP-lite, and multilayer SVI/routed-port/static routing/DHCP/relay; profile-aware API, Angular palette/inspector, and Eve schemas/coaching; curriculum expanded to 22 passing models + 26 broken exercises with official solutions. |
 | `4438b88`…`55b0916` (2026-11-18) | API to `netbench-api.cristiancode.dev` on the hosting platform; web polls the state without a socket (`live` signal, footer texts in 5 languages); API honours `HOST` and reports `HOSTING_COMMIT_SHA`; CORS preflight cached 10 min; magic-link sign-in removed (account takeover); `resolve()` ties go to the newest session (fixed a flaky test); Eve on free-tier models |
 | `96affa8`… (2026-11-18) | Case-study docs `docs/01`–`20` (Spanish) for cristiancode.dev, `portfolio-docs.yml` rebuild workflow; old `docs/architecture.md`, `commands.md` and the stale `lab.schema.json` copy folded in or removed |
+| `f1fbde1`, `5252dad` (2026-11-20) | Off Vercel: Eve on local models (Bionic, then Ollama `netbench-eve`) through `@ai-sdk/openai-compatible` with 15-min undici timeouts; OIDC auth, Vercel sandbox, link/deploy scripts, `apps/web/vercel.json` and the Railway Eve image removed; web, Eve and API are three hosting-platform projects; subagent sandboxes pinned to just-bash; shell, file and web tools disabled; no-lab answers in `instructions.md` |
 
-Latest verification (2026-11-18): engine 64 tests green; API 37 tests green (6 runs in a row); `tsc --noEmit` clean for engine and API; Angular production build green; `eve build` green. Live, in headless Chrome at 1440×900: guest boot, ping, Check pass on lab 1, Check fail on `ex-wrong-gateway`, Eve diagnosed and fixed it through the new API, footer Connected throughout.
+Latest verification (2026-11-20): engine 64 and API 37 tests green, `tsc --noEmit` clean for both, Angular and `eve build` green on the platform. Live at https://netbench.cristiancode.dev in headless Chrome at 1280×800: footer Connected, `ex-wrong-gateway` Check fails, then Eve — on Ollama `netbench-eve`, because Bionic was hung — read the lab, ran `run_check` and `get_path`, replaced PC2's default route and confirmed with `run_check`, in about 2 minutes, streamed through Cloudflare. The test browser itself was killed by memory pressure while Ollama's model (13.8 GB) was loaded; the turn finished on the server.
+
+Previous verification (2026-11-18): engine 64 tests green; API 37 tests green (6 runs in a row); `tsc --noEmit` clean for engine and API; Angular production build green; `eve build` green. Live, in headless Chrome at 1440×900: guest boot, ping, Check pass on lab 1, Check fail on `ex-wrong-gateway`, Eve diagnosed and fixed it through the new API, footer Connected throughout.
 
 ### Known pitfalls
 
 1. **SVG viewport clipping** — SVG must be world-sized, not `h-full w-full`.
 2. **Zoneless Angular** — gesture/pinch native listeners need `cdr.detectChanges()`.
 3. **Switch ports admin down** — only Gi0/1–2 are no-shut in lab-1 startup; new cables must `adminUp` (engine `addLink`).
-4. **Eve model** — `minimax/minimax-m3.1-flash` default; every model in the chain must be on the AI Gateway free tier.
-5. **Eve URL** — Angular must use the Vercel Eve host, not an `/eve` proxy on the API.
+4. **Eve model** — local only: Bionic `qwen3.8-9b-heretic-uncensored-mtplx`, then Ollama `netbench-eve` (create it from `apps/eve-agent/ollama/Modelfile`; plain `qwen3.5:9b-mlx` has an 8K context through Ollama's OpenAI endpoint, too small for Eve).
+5. **Eve URL** — Angular must use `https://netbench-eve.cristiancode.dev`, not an `/eve` proxy on the API.
 6. **`defineAgent({ name })`** — invalid on eve 0.47.
 7. **Tailwind `flex` vs `[class.hidden]`** — use `[ngClass]` to choose `hidden` **or** `flex`, not both.
 8. **Guest labs** persist in `localStorage.nb_guest_lab` and restore on reload. Neon SELECT still required for signed-in lab lists.
@@ -489,11 +497,13 @@ Latest verification (2026-11-18): engine 64 tests green; API 37 tests green (6 r
 11. **No regex literals / arrow functions in templates** — Angular rejects them; use component methods (`isApproveOption`, `reachHasTarget`).
 12. **Terminal input** binds `[value]`/`(input)` to a signal on purpose: `ngModel` writes programmatic changes asynchronously, which breaks Tab completion and ↑/↓ history.
 13. **Hints are state, not simulation** — `hintsFor()` only reads engine facts (adminUp, status, peers, running-config, checks). Never add a hint that predicts forwarding.
-14. **`HTTP 404 — Cannot POST /api/eve/tools/confirm` from Eve** (usually with `lab session not found` for the UI's `labKey`) means the API is an older build than the Vercel web + Eve host. Check `GET https://netbench-api.cristiancode.dev/api/health`: `version` must be a recent `main` commit and `eveTools: true`. The hosting platform deploys every push; if it did not, look at the deploy in its admin (a failed test leaves the old build serving).
+14. **`HTTP 404 — Cannot POST /api/eve/tools/confirm` from Eve** (usually with `lab session not found` for the UI's `labKey`) means the API is an older build than the web app and Eve. Check `GET https://netbench-api.cristiancode.dev/api/health`: `version` must be a recent `main` commit and `eveTools: true`. The hosting platform deploys every push; if it did not, look at the deploy in its admin (a failed test leaves the old build serving).
 15. **No socket in production** — `WS` is `null` off localhost and `Api.poll()` reads the state. A `wss://` URL would fail on the HTTP-only path and the footer would sit on Reconnecting.
-16. **Eve says `MODEL_CALL_FAILED` / `gateway-free-tier-model-restricted`** — a model in the chain left the AI Gateway free tier. Swap it for one with `availableToFreeTier` (or set `EVE_MODEL` / `EVE_FALLBACK_MODELS` on the Vercel project).
+16. **Eve says `MODEL_CALL_FAILED` with `ECONNREFUSED`/`ECONNRESET`/`EPIPE` on `127.0.0.1:1235`** — Bionic is down or hung (on 2026-11-19 it kept its port open but reset every connection until the app was restarted). Eve moves to Ollama on the next step; the drawer re-sends the turn. Check `curl -s 127.0.0.1:1235/v1/models` and Mac mini Monitor's AI page.
 17. **Phone header width** — at 390 px the header holds the lab picker, Help (Basic), Undo (not in Basic), Check and Basic on / ⋯. My labs, Save and Redo are hidden below `md` (My labs and Save a copy are in ⋯). One more button made the header 516 px wide and mobile Chrome then zoomed the whole page out; measure `document.documentElement.scrollWidth` at 390 after any header change.
 18. **Eve's replies are rendered** by `eve-markdown.ts` (escape first, then fenced code, `code`, **bold**). Tables and headings are not rendered; `instructions.md` and the `how-eve-must-talk` skill tell Eve not to write them.
+19. **Subagent sandboxes** — every subagent needs its own `sandbox.ts` pinning just-bash. Without it eve's default backend uses Docker on this Mac (Docker's VM is capped at 5 GB and the internal disk is nearly full).
+20. **Local models are slow and serial** — a multi-step fix takes ~2.5 min, one conversation at a time. Run evals with `--max-concurrency 1`.
 
 ---
 

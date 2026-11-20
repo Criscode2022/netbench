@@ -15,7 +15,7 @@ Tiene cuatro partes:
 - **El motor** (`packages/engine`): un simulador de eventos discretos en TypeScript puro. Reenvía tramas y paquetes, ejecuta la terminal de cada equipo y comprueba los objetivos de cada laboratorio.
 - **La API** (`apps/api`): NestJS. Mantiene un motor por sesión abierta en un proceso de Node que no se apaga, y guarda cuentas y laboratorios en Postgres.
 - **La web** (`apps/web`): Angular 22 sin Zone.js y Tailwind 4. El lienzo, la terminal, el inspector de paquetes y el cajón de Eve.
-- **Eve** (`apps/eve-agent`): un agente de [eve](https://www.npmjs.com/package/eve) desplegado en Vercel, con herramientas que llaman a la API.
+- **Eve** (`apps/eve-agent`): un agente de [eve](https://www.npmjs.com/package/eve) con modelos locales (Bionic y Ollama), en el mismo Mac que la API, con herramientas que llaman a la API.
 
 ## Qué lo hace distinto
 
@@ -30,7 +30,7 @@ El motor es la única fuente de verdad. La web nunca decide si un paquete llega:
 
 ## Enlaces
 
-- **Demo:** [netbench-www-criscode2022s-projects.vercel.app](https://netbench-www-criscode2022s-projects.vercel.app/)
+- **Demo:** [netbench.cristiancode.dev](https://netbench.cristiancode.dev/)
 - **API:** [netbench-api.cristiancode.dev/api/health](https://netbench-api.cristiancode.dev/api/health)
 - **GitHub:** [Criscode2022/netbench](https://github.com/Criscode2022/netbench)
 
@@ -41,10 +41,10 @@ El motor es la única fuente de verdad. La web nunca decide si un paquete llega:
 | Motor | TypeScript 5.9 sin dependencias de ejecución, módulos ES |
 | API | NestJS 11 sobre Express, `ws` para el socket local, `jsonwebtoken`, `bcryptjs`, `pg` |
 | Web | Angular 22.1, signals y sin Zone.js, Tailwind CSS 4.3, TypeScript 6.0 |
-| Instructor | eve 0.47 en Vercel, AI Gateway con una cadena de modelos de varios proveedores |
+| Instructor | eve 0.47 con modelos locales: Qwen3.8 9B en Bionic y, de respaldo, Qwen3.5 9B en Ollama |
 | Datos | Postgres en Neon: usuarios y laboratorios guardados |
 | Pruebas | Vitest 3 y Supertest; evals de eve |
-| Despliegue | Web y Eve en Vercel; la API en un Mac propio, a través de una plataforma de hosting propia y Cloudflare |
+| Despliegue | Una plataforma de hosting propia en un Mac: la web como sitio estático en Cloudflare Pages, la API y Eve como procesos detrás de Cloudflare |
 
 ## En cifras
 
